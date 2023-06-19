@@ -26,12 +26,14 @@ contract XenGameTest is Test {
     address public nftContractAddress = 0x0a252663DBCc0b073063D6420a40319e438Cfa59;
     uint public initialBalance = 1 ether;
     XenGame public xenGameInstance;
+    ShareSplitter public devContract;
 
     function setUp() public {
         priceOracleInstance = new PriceOracle();
         XenBurnInstance = new xenBurn(address(priceOracleInstance), xenCrypto);
         nftRegistry = new NFTRegistry(nftContractAddress);
-        xenGameInstance = new XenGame(nftContractAddress, address(nftRegistry), address(XenBurnInstance));
+        devContract = new ShareSplitter(payable(address(4)), payable(address(5)));
+        xenGameInstance = new XenGame(nftContractAddress, address(nftRegistry), address(XenBurnInstance), address(devContract));
 
         console.log("setup ran");
     }

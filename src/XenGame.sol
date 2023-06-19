@@ -18,11 +18,17 @@ interface XENBurn {
     function deposit() external payable returns (bool);
 }
 
+interface IDEVContract {
+    function deposit() external payable;
+}
+
 
 contract XenGame {
     IXENnftContract public nftContract;
     INFTRegistry public nftRegistry;
     XENBurn public xenBurn;
+    IDEVContract public devContract;
+
 
     uint constant KEY_RESET_PERCENTAGE = 1; // 0.001% or 1 basis point
     uint constant NAME_REGISTRATION_FEE = 20000000000000000000; // 0.02 Ether in Wei
@@ -73,12 +79,14 @@ contract XenGame {
     mapping(address => mapping(uint => bool)) public earlyKeysReceived;
     
 
-    constructor(address _nftContractAddress, address _nftRegistryAddress, address _xenBurnContract) {
+    constructor(address _nftContractAddress, address _nftRegistryAddress, address _xenBurnContract, address _devContractAddress) {
         nftContract = IXENnftContract(_nftContractAddress);
         nftRegistry = INFTRegistry(_nftRegistryAddress);
         xenBurn = XENBurn(_xenBurnContract);
-        startNewRound(); // add a starting date time -----------------------------------------------------------------------------------
+        devContract = IDEVContract(_devContractAddress);
+        startNewRound(); // add a starting date time
     }
+
 
 
     function buyWithReferral(string memory _referrerName, uint _numberOfKeys) public payable {
@@ -158,7 +166,7 @@ contract XenGame {
                 if (players[msg.sender].lastRewardRatio[currentRound] == 0){
                     players[msg.sender].lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio;
                 }
-                
+
                 processKeyPurchase(maxKeysToPurchase, _amount);
                 rounds[currentRound].activePlayer = msg.sender;
                 adjustRoundEndTime(maxKeysToPurchase);
@@ -476,9 +484,10 @@ contract XenGame {
         players[msg.sender].names.push(_name);
         nameToAddress[_name] = msg.sender;
 
-        // Update the devFund with the amount received
-        devFund += msg.value;
+        // Send the funds to the DEV contract
+        devContract.deposit{value: msg.value}();
     }
+
 
 
 
