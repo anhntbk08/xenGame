@@ -151,7 +151,7 @@ contract XenGame {
                 (uint maxKeysToPurchase, uint cost) = calculateMaxKeysToPurchase(_amount);
 
                 // Update the reward ratio for the current round
-                rounds[currentRound].rewardRatio += (cost * PRECISION) / rounds[currentRound].totalKeys;
+                rounds[currentRound].rewardRatio += (_amount) / rounds[currentRound].totalKeys;
 
                 checkForEarlyKeys();
                 processKeyPurchase(maxKeysToPurchase, _amount);
@@ -199,13 +199,13 @@ contract XenGame {
                 }
 
                 // Calculate cost for _numberOfKeys
-                uint cost = _numberOfKeys * getKeyPrice() * (1 + ((KEY_PRICE_INCREMENT_PERCENTAGE * _numberOfKeys) / 10000));
+                uint cost = calculatePriceForKeys(_numberOfKeys);
                 require(cost <= _amount, "Not enough ETH to buy the specified number of keys");
                 console.log("keys to buy cost ----------------", cost);
                 console.log("current round keys", rounds[currentRound].totalKeys );
                 console.log("current last key price:" , rounds[currentRound].lastKeyPrice);
                 // Update the reward ratio for the current round
-                rounds[currentRound].rewardRatio += (cost * PRECISION) / rounds[currentRound].totalKeys;
+                rounds[currentRound].rewardRatio += (_amount / rounds[currentRound].totalKeys);
 
                 checkForEarlyKeys();
                 processKeyPurchase(_numberOfKeys, _amount);
@@ -412,7 +412,7 @@ contract XenGame {
             (block.timestamp > rounds[_roundId].end && rounds[_roundId].activePlayer == address(0)))) {
 
             // Use the last key price set at the end of the Early Buy-in period
-            return rounds[_roundId].lastKeyPrice * (1 + ((KEY_PRICE_INCREMENT_PERCENTAGE * rounds[_roundId].totalKeys) / 10000));
+            return rounds[_roundId].earlyBuyinEth / (10**7);
         } else { 
             // Use the last key price set for this round, whether it's from the Early Buy-in period or elsewhere
             return rounds[_roundId].lastKeyPrice;
