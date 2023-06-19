@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 
@@ -570,7 +571,7 @@ contract XenGame {
         }
     }
 
-    function getPlayerName(address playerAddress, uint roundNumber) public view returns (string memory) {
+    function getPlayerName(address playerAddress) public view returns (string memory) {
         Player storage player = players[playerAddress];
         require(player.names.length > 0, "No names registered for the player.");
 
