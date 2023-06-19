@@ -209,7 +209,7 @@ contract NFTRegistry {
 
         // Interactions
         bool success = payable(msg.sender).send(rewardAmount);
-        //require(success, "Reward withdrawal failed to send rewards.");
+        require(success, "Reward withdrawal failed to send rewards.");
 
         console.log("current total rewards", totalRewards);
         console.log("current total rewards ratio", rewardRatio);

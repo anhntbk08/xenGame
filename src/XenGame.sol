@@ -151,7 +151,7 @@ contract XenGame {
                 (uint maxKeysToPurchase, uint cost) = calculateMaxKeysToPurchase(_amount);
 
                 // Update the reward ratio for the current round
-                rounds[currentRound].rewardRatio += (_amount) / rounds[currentRound].totalKeys;
+                rounds[currentRound].rewardRatio += (_amount / (rounds[currentRound].totalKeys / 1 ether));
 
                 checkForEarlyKeys();
                 processKeyPurchase(maxKeysToPurchase, _amount);
@@ -205,7 +205,7 @@ contract XenGame {
                 console.log("current round keys", rounds[currentRound].totalKeys );
                 console.log("current last key price:" , rounds[currentRound].lastKeyPrice);
                 // Update the reward ratio for the current round
-                rounds[currentRound].rewardRatio += (_amount / rounds[currentRound].totalKeys);
+                rounds[currentRound].rewardRatio += (_amount / (rounds[currentRound].totalKeys / 1 ether));
 
                 checkForEarlyKeys();
                 processKeyPurchase(_numberOfKeys, _amount);
@@ -302,6 +302,9 @@ contract XenGame {
 
         // Calculate the last key price for the round
         rounds[currentRound].lastKeyPrice = rounds[currentRound].earlyBuyinEth / (10**7);
+
+        // Set reward ratio
+        //rounds[currentRound].rewardRatio = 1; // set low non
 
         // Add early buy-in funds to the jackpot
         rounds[currentRound].jackpot += rounds[currentRound].earlyBuyinEth;
@@ -478,9 +481,20 @@ contract XenGame {
     }
 
     function withdrawRewards(uint roundNumber) public {
+
+        console.log("function withdrawRewards called", msg.sender, "tx.origin", tx.origin);    // TESTING line ------------------------------------------------
+
         Player storage player = players[msg.sender];
+
+        //uint Pkeys = players[msg.sender].keycount[roundNumber];
+        //console.log("player recorded key amount BEFORE check for early keys called:", player.keycount[roundNumber]);
+
         checkForEarlyKeys();
-        uint256 reward = (player.keyCount[roundNumber] * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])) / 1 ether;
+
+        //console.log("player recorded key amount AFTER check for early keys called:", players[msg.sender].keycount[roundNumber]);
+
+        uint256 reward = ((player.keyCount[roundNumber] / 1 ether) * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber]));
+        console.log("keys", (player.keyCount[roundNumber] / 1 ether) ,"rewardRatio", rounds[roundNumber].rewardRatio );
         console.log("withdraw function called ", reward);
         require(reward > 0, "No rewards to withdraw");
         
