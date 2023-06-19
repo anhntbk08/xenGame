@@ -51,8 +51,7 @@ contract XenGame {
         uint round;
         uint referralRewards;
         string[] names;  // Track registered names
-        string lastReferrer;  // Track last referrer name
-        uint lastWithdrawalPoolAmount;
+        string lastReferrer;  // Track last referrer name        
         mapping(uint => uint) lastRewardRatio; // New variable
     }
 
@@ -649,13 +648,11 @@ contract XenGame {
         uint keyCount,
         uint earlyBuyinPoints,
         uint referralRewards,
-        uint lastWithdrawalPoolAmount,
         uint lastRewardRatio
     ) {
         keyCount = getPlayerKeysCount(playerAddress, roundNumber);
         earlyBuyinPoints = players[playerAddress].earlyBuyinPoints[roundNumber];
         referralRewards = players[playerAddress].referralRewards;
-        lastWithdrawalPoolAmount = players[playerAddress].lastWithdrawalPoolAmount;
         lastRewardRatio = players[playerAddress].lastRewardRatio[roundNumber];
     }
 

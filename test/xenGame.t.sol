@@ -185,8 +185,6 @@ contract XenGameTest is Test {
             uint keyCount,
             uint earlyBuyinPoints,
             uint referralRewards,
-            
-            uint lastWithdrawalPoolAmount,
             uint lastRewardRatio
         ) = xenGameInstance.getPlayerInfo(playerAddress, roundNumber);
 
@@ -196,8 +194,6 @@ contract XenGameTest is Test {
         console.log("FORMATTED Key Count: ", keyCount / 1 ether );
         console.log("Early Buyin Points: ", earlyBuyinPoints);
         console.log("Referral Rewards: ", referralRewards);
-        
-        console.log("Last Withdrawal Pool Amount: ", lastWithdrawalPoolAmount);
         console.log("Last Reward Ratio: ", lastRewardRatio);
         console.log("");
     }
