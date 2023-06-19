@@ -151,9 +151,14 @@ contract XenGame {
                 (uint maxKeysToPurchase, uint cost) = calculateMaxKeysToPurchase(_amount);
 
                 // Update the reward ratio for the current round
-                rounds[currentRound].rewardRatio += (_amount / (rounds[currentRound].totalKeys / 1 ether));
+                rounds[currentRound].rewardRatio += ((_amount / 2) / (rounds[currentRound].totalKeys / 1 ether));
 
                 checkForEarlyKeys();
+
+                if (players[msg.sender].lastRewardRatio[currentRound] == 0){
+                    players[msg.sender].lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio;
+                }
+                
                 processKeyPurchase(maxKeysToPurchase, _amount);
                 rounds[currentRound].activePlayer = msg.sender;
                 adjustRoundEndTime(maxKeysToPurchase);
@@ -205,9 +210,15 @@ contract XenGame {
                 console.log("current round keys", rounds[currentRound].totalKeys );
                 console.log("current last key price:" , rounds[currentRound].lastKeyPrice);
                 // Update the reward ratio for the current round
-                rounds[currentRound].rewardRatio += (_amount / (rounds[currentRound].totalKeys / 1 ether));
+                rounds[currentRound].rewardRatio += ((_amount / 2)/ (rounds[currentRound].totalKeys / 1 ether));
 
                 checkForEarlyKeys();
+                
+                if (players[msg.sender].lastRewardRatio[currentRound] == 0){
+                    players[msg.sender].lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio;
+                }
+
+                
                 processKeyPurchase(_numberOfKeys, _amount);
                 rounds[currentRound].activePlayer = msg.sender;
                 adjustRoundEndTime(_numberOfKeys);
@@ -224,7 +235,7 @@ contract XenGame {
         Player storage player = players[msg.sender];
 
         // Calculate the player's rewards
-        uint256 reward = (player.keyCount[currentRound] * (rounds[currentRound].rewardRatio - player.lastRewardRatio[currentRound])) / PRECISION;
+        uint256 reward = ((player.keyCount[currentRound] / 1 ether) * (rounds[currentRound].rewardRatio - player.lastRewardRatio[currentRound]));
 
         require(reward > 0, "No rewards to withdraw");
 
@@ -393,9 +404,11 @@ contract XenGame {
             uint earlyKeys = ((playerPoints * 10_000_000) / totalPoints) * 1 ether;
 
             players[msg.sender].keyCount[currentRound] += earlyKeys;
-            
+            players[msg.sender].lastRewardRatio[currentRound] = 1; // set small non Zero amount
             // Mark that early keys were received for this round
             earlyKeysReceived[msg.sender][currentRound] = true;
+
+
         }
     }
 
