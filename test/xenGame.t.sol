@@ -7,7 +7,7 @@ import "forge-std/console.sol";
 import "../src/NFTRegistry.sol";
 import "../src/xenBurn.sol";
 import "../src/xenPriceOracle.sol";
-import "../src/dev.sol";
+import "../src/PlayerNameRegistry.sol";
 import "../src/XenGame.sol";
 
 interface IxenNFTContract {
@@ -26,14 +26,14 @@ contract XenGameTest is Test {
     address public nftContractAddress = 0x0a252663DBCc0b073063D6420a40319e438Cfa59;
     uint public initialBalance = 1 ether;
     XenGame public xenGameInstance;
-    ShareSplitter public devContract;
+    PlayerNameRegistry public playerNameRegistry;
 
     function setUp() public {
         priceOracleInstance = new PriceOracle();
         XenBurnInstance = new xenBurn(address(priceOracleInstance), xenCrypto);
         nftRegistry = new NFTRegistry(nftContractAddress);
-        devContract = new ShareSplitter(payable(address(4)), payable(address(5)));
-        xenGameInstance = new XenGame(nftContractAddress, address(nftRegistry), address(XenBurnInstance), address(devContract));
+        playerNameRegistry = new PlayerNameRegistry(payable(address(4)), payable(address(5)));
+        xenGameInstance = new XenGame(nftContractAddress, address(nftRegistry), address(XenBurnInstance), address(playerNameRegistry));
 
         console.log("setup ran");
     }

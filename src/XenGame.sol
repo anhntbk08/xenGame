@@ -18,8 +18,9 @@ interface XENBurn {
     function deposit() external payable returns (bool);
 }
 
-interface IDEVContract {
-    function deposit() external payable;
+interface IPlayerNameRegistry {
+    function registerPlayerName(address _address, string memory _name) external payable;
+    function getPlayerAddress(string memory _name) external view returns (address);
 }
 
 
@@ -27,7 +28,7 @@ contract XenGame {
     IXENnftContract public nftContract;
     INFTRegistry public nftRegistry;
     XENBurn public xenBurn;
-    IDEVContract public devContract;
+    IPlayerNameRegistry private playerNameRegistry;
 
 
     uint constant KEY_RESET_PERCENTAGE = 1; // 0.001% or 1 basis point
@@ -78,11 +79,11 @@ contract XenGame {
     mapping(address => mapping(uint => bool)) public earlyKeysReceived;
     
 
-    constructor(address _nftContractAddress, address _nftRegistryAddress, address _xenBurnContract, address _devContractAddress) {
+    constructor(address _nftContractAddress, address _nftRegistryAddress, address _xenBurnContract, address _playerNameRegistryAddress) {
         nftContract = IXENnftContract(_nftContractAddress);
         nftRegistry = INFTRegistry(_nftRegistryAddress);
         xenBurn = XENBurn(_xenBurnContract);
-        devContract = IDEVContract(_devContractAddress);
+        playerNameRegistry = IPlayerNameRegistry(_playerNameRegistryAddress);
         startNewRound(); // add a starting date time
     }
 
@@ -95,7 +96,7 @@ contract XenGame {
 
         Player storage player = players[msg.sender];
         string memory referrerName = bytes(_referrerName).length > 0 ? _referrerName : player.lastReferrer;
-        address referrer = nameToAddress[referrerName];
+        address referrer = playerNameRegistry.getPlayerAddress(referrerName);
 
         if (referrer != address(0)) {
             uint referralReward = (msg.value * REFERRAL_REWARD_PERCENTAGE) / 10000;  // 10% of the incoming ETH
@@ -475,18 +476,10 @@ contract XenGame {
     }
 
     
-    function setPlayerName(string memory _name) public payable {
-        require(bytes(_name).length > 0, "Name cannot be empty.");
-        require(nameToAddress[_name] == address(0), "This name is already in use.");
+    function registerPlayerName(address playerAddress, string memory name) public payable{
         require(msg.value >= NAME_REGISTRATION_FEE, "Insufficient funds to register the name.");
-
-        players[msg.sender].names.push(_name);
-        nameToAddress[_name] = msg.sender;
-
-        // Send the funds to the DEV contract
-        devContract.deposit{value: msg.value}();
+        playerNameRegistry.registerPlayerName{value: msg.value}(msg.sender,name);
     }
-
 
 
 
