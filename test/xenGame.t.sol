@@ -444,6 +444,115 @@ contract XenGameTest is Test {
         
     }
 
+    function testPlayerNameRegistry() public {
+        uint NAME_REGISTRATION_FEE = 20000000000000000000; // 0.02 Ether in Wei
+
+        // Registering a name with sufficient funds should succeed
+        try playerNameRegistry.registerPlayerName{value: NAME_REGISTRATION_FEE}(msg.sender, "Alice") {
+            string memory name = playerNameRegistry.getPlayerFirstName(msg.sender);
+            assertTrue(keccak256(bytes(name)) == keccak256(bytes("Alice")), "Name was not registered correctly.");
+        } catch Error(string memory reason) {
+            fail(reason);
+        } catch (bytes memory /*lowLevelData*/) {
+            fail("Low level error on registering name");
+        }
+
+        // Registering the same name again should fail
+        try playerNameRegistry.registerPlayerName{value: NAME_REGISTRATION_FEE}(msg.sender, "Alice") {
+            fail("Registering duplicate name should fail.");
+        } catch Error(string memory reason) {
+            assertTrue(keccak256(bytes(reason)) == keccak256(bytes("This name is already in use.")), "Incorrect error message for duplicate name.");
+        } catch (bytes memory /*lowLevelData*/) {
+            fail("Low level error on registering duplicate name");
+        }
+
+        // Registering a name without sufficient funds should fail
+        try playerNameRegistry.registerPlayerName{value: 10 ether}(msg.sender, "Bob") {
+            fail("Registering name without sufficient funds should fail.");
+        } catch Error(string memory reason) {
+            assertTrue(keccak256(bytes(reason)) == keccak256(bytes("Insufficient funds to register the name.")), 
+            "Incorrect error message for insufficient funds.");
+        } catch (bytes memory /*lowLevelData*/) {
+            fail("Low level error on registering name without sufficient funds");
+        }
+
+        // Check that the player name getter functions work correctly
+        string[] memory names = playerNameRegistry.getPlayerNames(msg.sender);
+        assertTrue(names.length > 0, "Player has no registered names.");
+
+        string memory firstName = playerNameRegistry.getPlayerFirstName(msg.sender);
+        assertTrue(keccak256(bytes(firstName)) == keccak256(bytes(names[0])), "First name getter returned incorrect result.");
+    }
+
+    function testPlayerNameRegistrationSuccess() public {
+        uint NAME_REGISTRATION_FEE = 20000000000000000000; // 0.02 Ether in Wei
+        string memory name = "Alice";
+
+        try playerNameRegistry.registerPlayerName{value: NAME_REGISTRATION_FEE}(msg.sender, name) {
+            string memory registeredName = playerNameRegistry.getPlayerFirstName(msg.sender);
+            assertTrue(keccak256(bytes(registeredName)) == keccak256(bytes(name)), "Name was not registered correctly.");
+        } catch Error(string memory reason) {
+            fail(reason);
+        } catch (bytes memory /*lowLevelData*/) {
+            fail("Low level error on registering name");
+        }
+    }
+
+    function testPlayerNameRegistrationDuplicate() public {
+        uint NAME_REGISTRATION_FEE = 20000000000000000000; // 0.02 Ether in Wei
+        string memory name = "Alice";
+
+        testPlayerNameRegistrationSuccess();
+
+        try playerNameRegistry.registerPlayerName{value: NAME_REGISTRATION_FEE}(msg.sender, name) {
+            fail("Registering duplicate name should fail.");
+        } catch Error(string memory reason) {
+            assertTrue(keccak256(bytes(reason)) == keccak256("This name is already in use."), "Incorrect error message for duplicate name.");
+        } catch (bytes memory /*lowLevelData*/) {
+            fail("Low level error on registering duplicate name");
+        }
+    }
+
+    function testPlayerNameRegistrationInsufficientFunds() public {
+        string memory name = "Bob";
+
+        try playerNameRegistry.registerPlayerName{value: 10 ether}(msg.sender, name) {
+            fail("Registering name without sufficient funds should fail.");
+        } catch Error(string memory reason) {
+            assertTrue(keccak256(bytes(reason)) == keccak256("Insufficient funds to register the name."), 
+            "Incorrect error message for insufficient funds.");
+        } catch (bytes memory /*lowLevelData*/) {
+            fail("Low level error on registering name without sufficient funds");
+        }
+    }
+
+    function testGetPlayerNames() public {
+        string[] memory expectedNames = new string[](2);
+        expectedNames[0] = "Alice";
+        expectedNames[1] = "Bob";
+        uint NAME_REGISTRATION_FEE = 20000000000000000000; // 0.02 Ether in Wei
+
+        // Register two names first
+        playerNameRegistry.registerPlayerName{value: NAME_REGISTRATION_FEE}(msg.sender, expectedNames[0]);
+        playerNameRegistry.registerPlayerName{value: NAME_REGISTRATION_FEE}(msg.sender, expectedNames[1]);
+
+        string[] memory names = playerNameRegistry.getPlayerNames(msg.sender);
+        assertTrue(names.length == expectedNames.length, "Player does not have the correct number of registered names.");
+        for (uint i = 0; i < names.length; i++) {
+            assertTrue(keccak256(bytes(names[i])) == keccak256(bytes(expectedNames[i])), "Unexpected name in the list.");
+        }
+    }
+
+    function testGetPlayerFirstName() public {
+        string memory name = "Alice";
+        uint NAME_REGISTRATION_FEE = 20000000000000000000; // 0.02 Ether in Wei
+
+        // Register a name first
+        playerNameRegistry.registerPlayerName{value: NAME_REGISTRATION_FEE}(msg.sender, name);
+
+        string memory firstName = playerNameRegistry.getPlayerFirstName(msg.sender);
+        assertTrue(keccak256(bytes(firstName)) == keccak256(bytes(name)), "First name getter returned incorrect result.");
+    }
 
 
 }

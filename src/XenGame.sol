@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.17;
 
 
 import "forge-std/console.sol";
@@ -21,6 +21,7 @@ interface XENBurn {
 interface IPlayerNameRegistry {
     function registerPlayerName(address _address, string memory _name) external payable;
     function getPlayerAddress(string memory _name) external view returns (address);
+    function getPlayerFirstName(address playerAddress) external view returns (string memory);
 }
 
 
@@ -51,7 +52,6 @@ contract XenGame {
         mapping(uint => uint) earlyBuyinPoints; // Track early buyin points for each round
         uint round;
         uint referralRewards;
-        string[] names;  // Track registered names
         string lastReferrer;  // Track last referrer name        
         mapping(uint => uint) lastRewardRatio; // New variable
     }
@@ -600,10 +600,7 @@ contract XenGame {
     }
 
     function getPlayerName(address playerAddress) public view returns (string memory) {
-        Player storage player = players[playerAddress];
-        require(player.names.length > 0, "No names registered for the player.");
-
-        return player.names[0];
+        return playerNameRegistry.getPlayerFirstName(playerAddress);
     }
 
     function getRoundStats(uint roundId) public view returns (
