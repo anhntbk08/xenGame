@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 
 //  testing ---------------------------------------------------------------------------------------------------------------
-import "forge-std/console.sol";
+//import "forge-std/console.sol";
 
 
 
@@ -57,13 +57,7 @@ contract NFTRegistry {
 
     constructor(address _nftContractAddress) {
         nftContractAddress = _nftContractAddress;
-        
-        _setCategoryRange(XUNICORN_MIN_ID, XUNICORN_MAX_ID, "Xunicorn");
-        _setCategoryRange(EXOTIC_MIN_ID, EXOTIC_MAX_ID, "Exotic");
-        _setCategoryRange(LEGENDARY_MIN_ID, LEGENDARY_MAX_ID, "Legendary");
-        _setCategoryRange(EPIC_MIN_ID, EPIC_MAX_ID, "Epic");
-        _setCategoryRange(RARE_MIN_ID, RARE_MAX_ID, "Rare");
-        
+                        
         rewardsMap[XUNICORN_WEIGHT] = 6;
         rewardsMap[EXOTIC_WEIGHT] = 29;
         rewardsMap[LEGENDARY_WEIGHT] = 32;
@@ -80,29 +74,29 @@ contract NFTRegistry {
         totalRewards += msg.value;
         rewardRatio += msg.value / totalPoints;
 
-        console.log("current total rewards", totalRewards);
-        console.log("current total rewards ratio", rewardRatio);
-        console.log("current total points", totalPoints);
+        ////console.log("current total rewards", totalRewards);
+        ////console.log("current total rewards ratio", rewardRatio);
+        ////console.log("current total points", totalPoints);
     }
 
     function addToPool() external payable {
 
-        console.log("---------------Add to contract -------------", msg.value);
+        //console.log("---------------Add to contract -------------", msg.value);
         totalRewards += msg.value;
         rewardRatio += msg.value / totalPoints;
-        console.log("current total rewards", totalRewards);
-        console.log("current total rewards ratio", rewardRatio);
-        console.log("current total points", totalPoints);
+        //console.log("current total rewards", totalRewards);
+        //console.log("current total rewards ratio", rewardRatio);
+        //console.log("current total points", totalPoints);
 
     }
 
     function registerNFT(uint256 tokenId) external {
-        console.log("regesterNFT function msg,sender", msg.sender, "tx.origin", tx.origin);    // TESTING line ------------------------------------------------
+        //console.log("regesterNFT function msg,sender", msg.sender, "tx.origin", tx.origin);    // TESTING line ------------------------------------------------
         require(_isNFTOwner(tokenId, msg.sender), "You don't own this NFT.");
 
         // Calculate the reward points for the NFT
         uint256 rewardPoints = getTokenWeight(tokenId);
-        console.log("token weight returned " , rewardPoints);
+        //console.log("token weight returned " , rewardPoints);
         
         // Check if the NFT was previously registered to a different user
         address previousOwner = getNFTOwner(tokenId);
@@ -128,11 +122,11 @@ contract NFTRegistry {
         // Update the NFT ownership
         setNFTOwner(tokenId, msg.sender);
 
-        console.log("function end", "user points", users[msg.sender].userPoints);
-        console.log("user last rewarded", users[msg.sender].userLastRewarded);
-        console.log("user total rewards", users[msg.sender].userRewards);
-        console.log("total points", totalPoints);
-        console.log("total rewards", totalRewards);
+        //console.log("function end", "user points", users[msg.sender].userPoints);
+        //console.log("user last rewarded", users[msg.sender].userLastRewarded);
+        //console.log("user total rewards", users[msg.sender].userRewards);
+        //console.log("total points", totalPoints);
+        //console.log("total rewards", totalRewards);
     }
 
     function isNFTRegistered(uint256 tokenId) public view returns (bool) {
@@ -158,7 +152,7 @@ contract NFTRegistry {
         return currentHolder[tokenId];
     }
 
-    function getCategory(uint256 tokenId) private view returns (string memory) {
+    function getCategory(uint256 tokenId) private pure returns (string memory) {
         if (tokenId >= XUNICORN_MIN_ID && tokenId <= XUNICORN_MAX_ID) {
             return "Xunicorn";
         } else if (tokenId >= EXOTIC_MIN_ID && tokenId <= EXOTIC_MAX_ID) {
@@ -170,7 +164,6 @@ contract NFTRegistry {
         } else if (tokenId >= RARE_MIN_ID && tokenId <= RARE_MAX_ID) {
             return "Rare";
         } else {
-            console.log("get catgory error", tokenId);
             revert("Invalid token ID.");
         }
     }
@@ -178,20 +171,20 @@ contract NFTRegistry {
     function calculateReward(address user) public view returns (uint256) {
        User storage userData = users[user];
        uint256 lastRewardRatio = userData.lastRewardRatio;
-       console.log("calc reward start lastRewardRatio", lastRewardRatio);
+       //console.log("calc reward start lastRewardRatio", lastRewardRatio);
        uint256 newRewards = rewardRatio - lastRewardRatio;
-       console.log("newRewards", newRewards);
+       //console.log("newRewards", newRewards);
 
        return newRewards * userData.userPoints;
    }
 
     function withdrawRewards() external payable{
 
-        console.log(" WithdrawRewards function msg,sender", msg.sender, "tx.origin", tx.origin);
+        //console.log(" WithdrawRewards function msg,sender", msg.sender, "tx.origin", tx.origin);
 
-        console.log("current total rewards", totalRewards);
-        console.log("current total rewards ratio", rewardRatio);
-        console.log("current total points", totalPoints);
+        //console.log("current total rewards", totalRewards);
+        //console.log("current total rewards ratio", rewardRatio);
+        //console.log("current total points", totalPoints);
 
 
         User storage userData = users[msg.sender];
@@ -200,7 +193,7 @@ contract NFTRegistry {
         uint256 rewardAmount = calculateReward(msg.sender);
         require(rewardAmount > 0, "No new rewards available for withdrawal.");
 
-        console.log("player reward amount", rewardAmount);
+        //console.log("player reward amount", rewardAmount);
 
         // Effects
         userData.userRewards += rewardAmount;
@@ -211,9 +204,9 @@ contract NFTRegistry {
         bool success = payable(msg.sender).send(rewardAmount);
         require(success, "Reward withdrawal failed to send rewards.");
 
-        console.log("current total rewards", totalRewards);
-        console.log("current total rewards ratio", rewardRatio);
-        console.log("current total points", totalPoints);
+        //console.log("current total rewards", totalRewards);
+        //console.log("current total rewards ratio", rewardRatio);
+        //console.log("current total points", totalPoints);
     }
 
 
@@ -222,12 +215,6 @@ contract NFTRegistry {
         address nftOwner = nftContract.ownerOf(tokenId);
 
         return nftOwner == owner;
-    }
-
-    function _setCategoryRange(uint256 minId, uint256 maxId, string memory category) private {
-        for (uint256 i = minId; i <= maxId; i++) {
-            categoryMap[i] = category;
-        }
     }
 
     function _categorizeNFT(uint256 tokenId) private pure returns (string memory) {

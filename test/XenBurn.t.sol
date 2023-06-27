@@ -1,19 +1,20 @@
-pragma solidity ^0.8.18;
-
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../src/xenBurn.sol";
 import "../src/xenPriceOracle.sol";
+import "../src/PlayerNameRegistry.sol"; 
 
 contract XenBurnTest is Test {
     xenBurn public XenBurnInstance;
     PriceOracle public priceOracleInstance;
     address public xenCrypto = 0x06450dEe7FD2Fb8E39061434BAbCFC05599a6Fb8; 
     uint public initialBalance = 1 ether;
+    PlayerNameRegistry public playerNameRegistry;
 
     function setUp() public {
         priceOracleInstance = new PriceOracle();
-        XenBurnInstance = new xenBurn(address(priceOracleInstance), xenCrypto);
+        playerNameRegistry = new PlayerNameRegistry(payable(address(4)), payable(address(5))); 
+        XenBurnInstance = new xenBurn(address(priceOracleInstance), xenCrypto, address(playerNameRegistry)); 
     }
 
     function testDeposit() public {

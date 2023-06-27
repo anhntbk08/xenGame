@@ -7,10 +7,6 @@ import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 //  testing ---------------------------------------------------------------------------------------------------------------
 import "forge-std/console.sol";
 
-interface INewFomo3DGame {
-    function players(address player) external view returns (uint, uint, string[] memory, string memory, uint);
-}
-
 interface IPriceOracle {
     function calculateAveragePrice() external view returns (uint256);
 }
@@ -23,6 +19,10 @@ interface IBurnableToken {
     function burn(address user, uint256 amount) external;
 }
 
+interface IPlayerNameRegistryBurn {
+    function getPlayerNames(address playerAddress) external view returns (string[] memory);
+}
+
 contract xenBurn is IBurnRedeemable {
     
     address public xenCrypto;
@@ -32,12 +32,13 @@ contract xenBurn is IBurnRedeemable {
     uint public totalCount;
     address private uniswapPool = 0xC0d776E2223c9a2ad13433DAb7eC08cB9C5E76ae;
     IPriceOracle private priceOracle; 
-    INewFomo3DGame private gameContract;
-    bool private gameContractSet = false; 
+    IPlayerNameRegistryBurn private playerNameRegistry;
+    
 
-    constructor(address _priceOracle, address _xenCrypto) {
+    constructor(address _priceOracle, address _xenCrypto, address _playerNameRegistry) {
         priceOracle = IPriceOracle(_priceOracle);
         xenCrypto = _xenCrypto;
+        playerNameRegistry = IPlayerNameRegistryBurn(_playerNameRegistry);
     }
 
     event TokenBurned(address indexed user, uint256 amount, string playerName);
@@ -67,8 +68,8 @@ contract xenBurn is IBurnRedeemable {
         require(address(this).balance > 0, "No ETH available");
 
         // Pull player's name from game contract
-        (, , string[] memory names,,) = gameContract.players(msg.sender);
-        require(names.length > 0, "Player must have registered name");
+        string[] memory names = playerNameRegistry.getPlayerNames(msg.sender);
+        require(names.length > 0, "User must have at least 1 name registered");
         
 
         // Amount to use for swap (98% of the contract's ETH balance)
@@ -164,23 +165,15 @@ contract xenBurn is IBurnRedeemable {
         // Set the burn operation as successful for the user
         burnSuccessful[user] = true;
 
-        // Pull player's name from game contract
-        (, , string[] memory names,,) = gameContract.players(user);
-        require(names.length > 0, "Player must have registered name");
+        // Pull player's name from the PlayerNameRegistry contract
+        string[] memory names = playerNameRegistry.getPlayerNames(user);
+        
         string memory playerName = names[0];
 
         // Emit the TokenBurned event
         emit TokenBurned(user, amount, playerName);
-
-        
     }
-
-    function setGameContract(address _gameContract) external {
-        require(!gameContractSet, "Game contract can only be set once");
-        gameContract = INewFomo3DGame(_gameContract);
-        gameContractSet = true;
-    }
-
+  
     // Function to check if a user's burn operation was successful
     function wasBurnSuccessful(address user) external view returns (bool) {
         return burnSuccessful[user];

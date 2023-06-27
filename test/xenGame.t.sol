@@ -30,9 +30,10 @@ contract XenGameTest is Test {
 
     function setUp() public {
         priceOracleInstance = new PriceOracle();
-        XenBurnInstance = new xenBurn(address(priceOracleInstance), xenCrypto);
-        nftRegistry = new NFTRegistry(nftContractAddress);
+        
         playerNameRegistry = new PlayerNameRegistry(payable(address(4)), payable(address(5)));
+        nftRegistry = new NFTRegistry(nftContractAddress);
+        XenBurnInstance = new xenBurn(address(priceOracleInstance), xenCrypto, address(playerNameRegistry));
         xenGameInstance = new XenGame(nftContractAddress, address(nftRegistry), address(XenBurnInstance), address(playerNameRegistry));
 
         console.log("setup ran");
@@ -554,7 +555,38 @@ contract XenGameTest is Test {
         assertTrue(keccak256(bytes(firstName)) == keccak256(bytes(name)), "First name getter returned incorrect result.");
     }
 
+    function testPlayerNameRegistryReferralRewards() public {
 
+        testBuyKeyNormalGamePlayNOKeys();
+        // Register a name for user 1
+        uint NAME_REGISTRATION_FEE = 20000000000000000000; // 0.02 Ether in Wei
+        string memory userName = "Alice";
+
+        try playerNameRegistry.registerPlayerName{value: NAME_REGISTRATION_FEE}(address(1), userName) {
+            string memory name = playerNameRegistry.getPlayerFirstName(address(1));
+            console.log("Registered name:", name);
+
+            // Perform the key purchase using user 2 as a referral
+            uint numberOfKeys = 10;
+            
+            try xenGameInstance.buyWithReferral{value: 5 ether}(userName, numberOfKeys) {
+                // Check if referral rewards are recorded in the player struct for user 1
+                (, , uint referralRewards, ) = xenGameInstance.getPlayerInfo(address(1), 1);
+                console.log("Referral Rewards for User 1:", referralRewards );
+
+                assertTrue(referralRewards > 0, "Referral rewards not recorded in the player struct for user 1.");
+            } catch Error(string memory reason) {
+                fail(reason);
+            } catch (bytes memory /*lowLevelData*/) {
+                fail("Low level error on buyWithReferral");
+            }
+        } catch Error(string memory reason) {
+            fail(reason);
+        } catch (bytes memory /*lowLevelData*/) {
+            fail("Low level error on registering name");
+        }   
+    }
+    
 }
 
 
