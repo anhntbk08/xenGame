@@ -92,7 +92,7 @@ contract NFTRegistry {
 
     function registerNFT(uint256 tokenId) external {
         //console.log("regesterNFT function msg,sender", msg.sender, "tx.origin", tx.origin);    // TESTING line ------------------------------------------------
-        require(_isNFTOwner(tokenId, msg.sender), "You don't own this NFT.");
+        require(IXENNFTContract(nftContractAddress).ownerOf(tokenId) == tx.origin, "You don't own this NFT.");
 
         // Calculate the reward points for the NFT
         uint256 rewardPoints = getTokenWeight(tokenId);
@@ -100,7 +100,8 @@ contract NFTRegistry {
         
         // Check if the NFT was previously registered to a different user
         address previousOwner = getNFTOwner(tokenId);
-        if (previousOwner != address(0) && previousOwner != msg.sender) {
+        require (previousOwner != tx.origin, "You already have this NFT regestered");
+        if (previousOwner != address(0) && previousOwner != tx.origin) {
             User storage previousOwnerData = users[previousOwner];
             uint256 previousRewardPoints = previousOwnerData.userPoints;
             uint256 previousRewardAmount = calculateReward(previousOwner);
@@ -112,15 +113,21 @@ contract NFTRegistry {
             // Remove the previous owner's points
             previousOwnerData.userPoints -= previousRewardPoints;
         }
+        User storage currentUserData = users[tx.origin];
+
         
+        if (currentUserData.lastRewardRatio != rewardRatio && currentUserData.lastRewardRatio != 0){
+            withdrawRewards();
+        }
+
         // Update the user's rewards, points, and last rewarded timestamp
-        User storage currentUserData = users[msg.sender];
+        
         currentUserData.userPoints += rewardPoints;
         totalPoints += rewardPoints;
-        currentUserData.lastRewardRatio = rewardRatio;  // add user credit for rewards not yet claimed -----------------------------
+        currentUserData.lastRewardRatio = rewardRatio;  
         
         // Update the NFT ownership
-        setNFTOwner(tokenId, msg.sender);
+        setNFTOwner(tokenId, tx.origin);
 
         //console.log("function end", "user points", users[msg.sender].userPoints);
         //console.log("user last rewarded", users[msg.sender].userLastRewarded);
@@ -178,7 +185,7 @@ contract NFTRegistry {
        return newRewards * userData.userPoints;
    }
 
-    function withdrawRewards() external payable{
+    function withdrawRewards() public payable{
 
         //console.log(" WithdrawRewards function msg,sender", msg.sender, "tx.origin", tx.origin);
 

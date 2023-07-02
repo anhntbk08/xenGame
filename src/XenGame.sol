@@ -33,12 +33,12 @@ contract XenGame {
 
 
     uint constant KEY_RESET_PERCENTAGE = 1; // 0.001% or 1 basis point
-    uint constant NAME_REGISTRATION_FEE = 20000000000000000000; // 0.02 Ether in Wei
+    uint constant NAME_REGISTRATION_FEE = 20000000000000000; // 0.02 Ether in Wei
     uint constant KEY_PRICE_INCREMENT_PERCENTAGE = 10; // 0.099% or approx 10 basis points
     uint constant REFERRAL_REWARD_PERCENTAGE = 1000;  // 10% or 1000 basis points
     uint constant NFT_POOL_PERCENTAGE = 500;   // 5% or 500 basis points
-    uint constant ROUND_GAP = 24 hours;
-    uint constant EARLY_BUYIN_DURATION = 90;
+    uint constant ROUND_GAP = 1 hours;  // *********************************************************updated to 1 hour for testing 
+    uint constant EARLY_BUYIN_DURATION = 300; // *********************************************************** updated to 5 min  for testing 
 
     uint constant KEYS_FUND_PERCENTAGE = 5000;  // 50% or 5000 basis points
     uint constant JACKPOT_PERCENTAGE = 3000;  // 30% or 3000 basis points
@@ -159,7 +159,7 @@ contract XenGame {
                 (uint maxKeysToPurchase, uint cost) = calculateMaxKeysToPurchase(_amount);
 
                 // Update the reward ratio for the current round
-                rounds[currentRound].rewardRatio += ((_amount / 2) / (rounds[currentRound].totalKeys / 1 ether));
+                rounds[currentRound].rewardRatio += ((_amount / 2) / (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys  
 
                 checkForEarlyKeys();
 
@@ -218,7 +218,7 @@ contract XenGame {
                 console.log("current round keys", rounds[currentRound].totalKeys );
                 console.log("current last key price:" , rounds[currentRound].lastKeyPrice);
                 // Update the reward ratio for the current round
-                rounds[currentRound].rewardRatio += ((_amount / 2)/ (rounds[currentRound].totalKeys / 1 ether));
+                rounds[currentRound].rewardRatio += ((_amount / 2)/ (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys  
 
                 checkForEarlyKeys();
                 
@@ -243,12 +243,12 @@ contract XenGame {
         Player storage player = players[msg.sender];
 
         // Calculate the player's rewards
-        uint256 reward = ((player.keyCount[currentRound] / 1 ether) * (rounds[currentRound].rewardRatio - player.lastRewardRatio[currentRound]));
+        uint256 reward = ((player.keyCount[currentRound] / 1 ether) * (rounds[currentRound].rewardRatio - player.lastRewardRatio[currentRound])); // using full keys for reward calc 
 
         require(reward > 0, "No rewards to withdraw");
 
         // Reset player's lastRewardRatio for the round
-        player.lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio;
+        player.lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio; // 
 
         // Calculate max keys that can be purchased with the reward
         (uint maxKeysToPurchase, uint cost) = calculateMaxKeysToPurchase(reward);
@@ -257,7 +257,7 @@ contract XenGame {
         require(maxKeysToPurchase > 0, "Not enough rewards to purchase any keys");
 
         // Update the reward ratio for the current round
-        rounds[currentRound].rewardRatio += (cost * PRECISION) / rounds[currentRound].totalKeys;
+        rounds[currentRound].rewardRatio += (cost * PRECISION) / rounds[currentRound].totalKeys; // ****** Uddating using fractional keys *******
 
         // Process the key purchase
         checkForEarlyKeys();
@@ -320,7 +320,7 @@ contract XenGame {
         rounds[currentRound].isEarlyBuyin = false;
 
         // Calculate the last key price for the round
-        rounds[currentRound].lastKeyPrice = rounds[currentRound].earlyBuyinEth / (10**7);
+        rounds[currentRound].lastKeyPrice = rounds[currentRound].earlyBuyinEth / (10**7); // using full keys  ********************************************
 
         // Set reward ratio
         //rounds[currentRound].rewardRatio = 1; // set low non
@@ -388,7 +388,7 @@ contract XenGame {
         uint increase = ((fractionalKeys * 10) / 1000000000000000000);  // 0.1% increase per key
 
         console.log("% increase key price", increase);
-        uint finalKeyPrice = (rounds[currentRound].lastKeyPrice * (10000 + increase)) / 10000;
+        uint finalKeyPrice = (rounds[currentRound].lastKeyPrice * (10000 + increase) / 10000);
 
         console.log("max Keys", maxKeysToPurchase);
         rounds[currentRound].lastKeyPrice = finalKeyPrice;
@@ -460,6 +460,7 @@ contract XenGame {
         uint keysFund = (_amount * KEYS_FUND_PERCENTAGE) / 10000;
         console.log("Key funds sent", keysFund);
         rounds[currentRound].keysFunds += keysFund;
+        rounds[currentRound].rewardRatio += (keysFund / (rounds[currentRound].totalKeys / 1 ether)); // updating ratio with full keys 
 
         uint jackpot = (_amount * JACKPOT_PERCENTAGE) / 10000;
         rounds[currentRound].jackpot += jackpot;
@@ -476,7 +477,7 @@ contract XenGame {
     }
 
     
-    function registerPlayerName(address playerAddress, string memory name) public payable{
+    function registerPlayerName( string memory name) public payable{
         require(msg.value >= NAME_REGISTRATION_FEE, "Insufficient funds to register the name.");
         playerNameRegistry.registerPlayerName{value: msg.value}(msg.sender,name);
     }
@@ -485,7 +486,7 @@ contract XenGame {
 
     function registerNFT(uint256 tokenId) external {
         require(nftContract.ownerOf(tokenId) == msg.sender, "You don't own this NFT.");
-        require(!nftRegistry.isNFTRegistered(tokenId), "NFT already registered.");
+        
         nftRegistry.registerNFT(tokenId);
     }
 
@@ -552,7 +553,7 @@ contract XenGame {
         payable(winner).transfer(winnerShare);
 
         // Add to the keysFunds
-        round.keysFunds += keysFundsShare;
+        round.keysFunds += keysFundsShare;// ***************************************************adjust the new key ratio 
 
         // Set the starting jackpot for the next round
         rounds[currentRound + 1].jackpot = nextRoundJackpot;
@@ -569,7 +570,7 @@ contract XenGame {
     function startNewRound() private {
         currentRound += 1; 
         rounds[currentRound].start = block.timestamp + ROUND_GAP; // Add ROUND_GAP to the start time
-        rounds[currentRound].end = rounds[currentRound].start + 12 hours;  // Set end time to start time + round duration
+        rounds[currentRound].end = rounds[currentRound].start + 2 hours;  // Set end time to start time + round duration  **************chnaged starting time for testing 
         rounds[currentRound].ended = false;
     }
 

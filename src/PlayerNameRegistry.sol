@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
 contract PlayerNameRegistry {
@@ -17,7 +18,7 @@ contract PlayerNameRegistry {
         dev2 = _dev2;
     }
 
-    uint private constant NAME_REGISTRATION_FEE = 20000000000000000000; // 0.02 Ether in Wei
+    uint private constant NAME_REGISTRATION_FEE = 20000000000000000; // 0.02 Ether in Wei
 
     event PlayerNameRegistered(address playerAddress, string name);
 
