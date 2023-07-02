@@ -159,7 +159,7 @@ contract XenGame {
                 (uint maxKeysToPurchase, uint cost) = calculateMaxKeysToPurchase(_amount);
 
                 // Update the reward ratio for the current round
-                rounds[currentRound].rewardRatio += ((_amount / 2) / (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys  
+                //rounds[currentRound].rewardRatio += ((_amount / 2) / (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys  
 
                 checkForEarlyKeys();
 
@@ -218,7 +218,7 @@ contract XenGame {
                 console.log("current round keys", rounds[currentRound].totalKeys );
                 console.log("current last key price:" , rounds[currentRound].lastKeyPrice);
                 // Update the reward ratio for the current round
-                rounds[currentRound].rewardRatio += ((_amount / 2)/ (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys  
+                //rounds[currentRound].rewardRatio += ((_amount / 2)/ (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys  
 
                 checkForEarlyKeys();
                 
@@ -251,13 +251,14 @@ contract XenGame {
         player.lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio; // 
 
         // Calculate max keys that can be purchased with the reward
-        (uint maxKeysToPurchase, uint cost) = calculateMaxKeysToPurchase(reward);
+        (uint maxKeysToPurchase,) = calculateMaxKeysToPurchase(reward);
 
         // Make sure there are enough rewards to purchase at least one key
         require(maxKeysToPurchase > 0, "Not enough rewards to purchase any keys");
 
         // Update the reward ratio for the current round
-        rounds[currentRound].rewardRatio += (cost * PRECISION) / rounds[currentRound].totalKeys; // ****** Uddating using fractional keys *******
+        //updateRoundRatio(cost, currentRound);
+        //rounds[currentRound].rewardRatio += (cost * PRECISION) / rounds[currentRound].totalKeys; // ****** Uddating using fractional keys *******
 
         // Process the key purchase
         checkForEarlyKeys();
@@ -454,13 +455,19 @@ contract XenGame {
         return rounds[_roundId].jackpot / 10000000; // 0.00001% of the jackpot
     }
 
+    function updateRoundRatio (uint _amount, uint _roundNumber) private {
+        rounds[_roundNumber].rewardRatio += (_amount / (rounds[currentRound].totalKeys / 1 ether));
+    }
+
     function distributeFunds(uint _amount) private {
 
         console.log("distrubute funds called with amount ", _amount);
         uint keysFund = (_amount * KEYS_FUND_PERCENTAGE) / 10000;
         console.log("Key funds sent", keysFund);
         rounds[currentRound].keysFunds += keysFund;
-        rounds[currentRound].rewardRatio += (keysFund / (rounds[currentRound].totalKeys / 1 ether)); // updating ratio with full keys 
+
+        updateRoundRatio(keysFund, currentRound);
+        //rounds[currentRound].rewardRatio += (keysFund / (rounds[currentRound].totalKeys / 1 ether)); // updating ratio with full keys 
 
         uint jackpot = (_amount * JACKPOT_PERCENTAGE) / 10000;
         rounds[currentRound].jackpot += jackpot;
