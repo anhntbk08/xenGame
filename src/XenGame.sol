@@ -334,43 +334,32 @@ contract XenGame {
 
     function calculateMaxKeysToPurchase(uint _amount) public view returns (uint maxKeys, uint totalCost) {
         uint initialKeyPrice = getKeyPrice();
+        uint left = 0;
+        uint right = _amount / initialKeyPrice;
+        uint _totalCost;
 
-        // Estimate the maximum number of keys that could be bought with _amount if there was no price increase
-        uint maxKeysIfNoIncrease = _amount / initialKeyPrice;
-
-        // Calculate the total cost if we bought maxKeysIfNoIncrease keys with the new price model
-        uint increasePercentage = (maxKeysIfNoIncrease * KEY_PRICE_INCREMENT_PERCENTAGE) / 10000; // 0.1% increase per key
-        uint estimatedCost = maxKeysIfNoIncrease * initialKeyPrice * (10000 + increasePercentage) / 10000;
-
-        if (estimatedCost <= _amount) {
-            // We can afford maxKeysIfNoIncrease keys
-            return (maxKeysIfNoIncrease, estimatedCost);
-        } else {
-            // We can't afford maxKeysIfNoIncrease keys, find the maximum number we can afford
-            uint affordableKeys = maxKeysIfNoIncrease;
-
-            // Calculate the difference in cost, then adjust the keys estimate based on the ratio of cost to price
-            uint costDifference = estimatedCost - _amount;
-            uint keysAdjustment = (costDifference * 10000) / (initialKeyPrice * (10000 + increasePercentage));
-            affordableKeys = affordableKeys > keysAdjustment ? affordableKeys - keysAdjustment : 0;
-
-            // Since the keysAdjustment is floored, we may still overestimate the affordableKeys.
-            // Continue to decrement until we find an affordable amount.
-            while (affordableKeys * initialKeyPrice * (10000 + ((affordableKeys * KEY_PRICE_INCREMENT_PERCENTAGE) / 10000)) / 10000 > _amount) {
-                affordableKeys--;
+        while (left < right) {
+            uint mid = (left + right + 1) / 2;
+            _totalCost = calculatePriceForKeys(mid);
+            
+            if (_totalCost <= _amount) {
+                left = mid;
+            } else {
+                right = mid - 1;
             }
-
-            uint finalCost = affordableKeys * initialKeyPrice * (10000 + ((affordableKeys * KEY_PRICE_INCREMENT_PERCENTAGE) / 10000)) / 10000;
-
-            return (affordableKeys, finalCost);
         }
+
+        maxKeys = left;
+        _totalCost = calculatePriceForKeys(left);
+
+        return (maxKeys, _totalCost);
     }
 
     function calculatePriceForKeys(uint _keys) public view returns (uint totalPrice) {
         uint initialKeyPrice = getKeyPrice();
-        uint increase = (_keys * 10) / 10000;  // 0.1% increase per key
-        uint finalKeyPrice = initialKeyPrice * (10000 + increase) / 10000;
-        totalPrice = _keys * finalKeyPrice;
+        uint increasePerKey = 0.000000009 ether;
+
+        totalPrice = (_keys * initialKeyPrice) + (increasePerKey * (_keys * (_keys - 1) / 2)); // Sum of key prices
         return totalPrice;
     }
 
@@ -378,30 +367,19 @@ contract XenGame {
     function processKeyPurchase(uint maxKeysToPurchase, uint _amount) private {
         require(_amount >= 0, "Not enough Ether to purchase keys");
 
-        uint fractionalKeys = (maxKeysToPurchase * 1 ether); 
+        uint fractionalKeys = maxKeysToPurchase * 1 ether;
 
         players[msg.sender].keyCount[currentRound] += fractionalKeys;
         rounds[currentRound].totalKeys += fractionalKeys;
-        console.log("last Key Price final----------- Before update", rounds[currentRound].lastKeyPrice, "amount of eth ", _amount);
-        console.log("fractionalKeys keys to add-------" , fractionalKeys);
 
-        // Calculate final key price
-        uint increase = ((fractionalKeys * 10) / 1000000000000000000);  // 0.1% increase per key
+        uint finalKeyPrice = rounds[currentRound].lastKeyPrice;
 
-        console.log("% increase key price", increase);
-        uint finalKeyPrice = (rounds[currentRound].lastKeyPrice * (10000 + increase) / 10000);
+        uint increasePerKey = 0.000000009 ether;
+        finalKeyPrice += increasePerKey * maxKeysToPurchase;
 
-        console.log("max Keys", maxKeysToPurchase);
         rounds[currentRound].lastKeyPrice = finalKeyPrice;
-        console.log("last Key Price final", rounds[currentRound].lastKeyPrice);
-        console.log("finalKeyPrice", finalKeyPrice);
-        uint jackpotLimit = calculateJackpotThreshold(); //---------------------------------------------
-        console.log("jack pot limit new", jackpotLimit);
-
 
         distributeFunds(_amount);
-
-
     }
 
     function checkForEarlyKeys() private {
@@ -432,16 +410,10 @@ contract XenGame {
     function getKeyPrice() public view returns (uint) {
         uint _roundId = currentRound;
 
-        if (block.timestamp > rounds[_roundId].start + ROUND_GAP && 
-            (block.timestamp <= rounds[_roundId].end || 
-            (block.timestamp > rounds[_roundId].end && rounds[_roundId].activePlayer == address(0)))) {
-
-            // Use the last key price set at the end of the Early Buy-in period
-            return rounds[_roundId].earlyBuyinEth / (10**7);
-        } else { 
+        
             // Use the last key price set for this round, whether it's from the Early Buy-in period or elsewhere
             return rounds[_roundId].lastKeyPrice;
-        }
+        
     }
 
 
@@ -464,7 +436,7 @@ contract XenGame {
         console.log("distrubute funds called with amount ", _amount);
         uint keysFund = (_amount * KEYS_FUND_PERCENTAGE) / 10000;
         console.log("Key funds sent", keysFund);
-        rounds[currentRound].keysFunds += keysFund;
+        //rounds[currentRound].keysFunds += keysFund;
 
         updateRoundRatio(keysFund, currentRound);
         //rounds[currentRound].rewardRatio += (keysFund / (rounds[currentRound].totalKeys / 1 ether)); // updating ratio with full keys 
@@ -503,28 +475,19 @@ contract XenGame {
     }
 
     function withdrawRewards(uint roundNumber) public {
-
-        console.log("function withdrawRewards called", msg.sender, "tx.origin", tx.origin);    // TESTING line ------------------------------------------------
-
         Player storage player = players[msg.sender];
-
-        //uint Pkeys = players[msg.sender].keycount[roundNumber];
-        //console.log("player recorded key amount BEFORE check for early keys called:", player.keycount[roundNumber]);
 
         checkForEarlyKeys();
 
-        //console.log("player recorded key amount AFTER check for early keys called:", players[msg.sender].keycount[roundNumber]);
-
         uint256 reward = ((player.keyCount[roundNumber] / 1 ether) * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber]));
-        console.log("keys*******************", (player.keyCount[roundNumber] / 1 ether) ,"rewardRatio", rounds[roundNumber].rewardRatio );
-        console.log("withdraw function called for reward =", reward);
         require(reward > 0, "No rewards to withdraw");
-        console.log("reward ratio before update", player.lastRewardRatio[roundNumber]);
+
         player.lastRewardRatio[roundNumber] = rounds[roundNumber].rewardRatio;
 
-        // Transfer the reward to the player
         (bool success, ) = msg.sender.call{value: reward}("");
         require(success, "Failed to transfer rewards");
+
+        emit RewardsWithdrawn(msg.sender, reward, block.timestamp);
     }
 
     function withdrawReferralRewards() public {
@@ -673,5 +636,6 @@ contract XenGame {
 
     event BuyAndDistribute(address buyer, uint amount);
     event ReferralRewardsWithdrawn(address indexed player, uint256 amount, uint256 timestamp);
+    event RewardsWithdrawn(address indexed player, uint256 amount, uint256 timestamp);
 
 }
