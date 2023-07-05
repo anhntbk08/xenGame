@@ -160,7 +160,7 @@ contract XenGame {
             // Update the reward ratio for the current round
             //rounds[currentRound].rewardRatio += ((_amount / 2) / (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys  
 
-            checkForEarlyKeys();
+            withdrawRewards(currentRound);
 
             if (players[msg.sender].lastRewardRatio[currentRound] == 0){
                 players[msg.sender].lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio;
@@ -213,7 +213,7 @@ contract XenGame {
             // Update the reward ratio for the current round
             //rounds[currentRound].rewardRatio += (_amount / (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys  
 
-            checkForEarlyKeys();
+            withdrawRewards(currentRound);
 
             if (players[msg.sender].lastRewardRatio[currentRound] == 0) {
                 players[msg.sender].lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio;
@@ -234,6 +234,7 @@ contract XenGame {
 
         Player storage player = players[msg.sender];
 
+        checkForEarlyKeys();
         // Calculate the player's rewards
         uint256 reward = ((player.keyCount[currentRound] / 1 ether) * (rounds[currentRound].rewardRatio - player.lastRewardRatio[currentRound])); // using full keys for reward calc 
 
@@ -253,7 +254,7 @@ contract XenGame {
         //rounds[currentRound].rewardRatio += (cost * PRECISION) / rounds[currentRound].totalKeys; // ****** Uddating using fractional keys *******
 
         // Process the key purchase
-        checkForEarlyKeys();
+        
         processKeyPurchase(maxKeysToPurchase, reward);
 
         // Update the active player for the round
@@ -389,7 +390,7 @@ contract XenGame {
             uint earlyKeys = ((playerPoints * 10_000_000) / totalPoints) * 1 ether;
 
             players[msg.sender].keyCount[currentRound] += earlyKeys;
-            players[msg.sender].lastRewardRatio[currentRound] = 1; // set small non Zero amount
+            //players[msg.sender].lastRewardRatio[currentRound] = 1; // set small non Zero amount
             // Mark that early keys were received for this round
             earlyKeysReceived[msg.sender][currentRound] = true;
 
@@ -472,20 +473,22 @@ contract XenGame {
         // Burn fund logic
     }
 
+    
     function withdrawRewards(uint roundNumber) public {
         Player storage player = players[msg.sender];
 
         checkForEarlyKeys();
 
-        uint256 reward = ((player.keyCount[roundNumber] / 1 ether) * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber]));
-        require(reward > 0, "No rewards to withdraw");
-
+        uint256 reward = ((player.keyCount[roundNumber] * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])) / PRECISION);
         player.lastRewardRatio[roundNumber] = rounds[roundNumber].rewardRatio;
 
-        (bool success, ) = msg.sender.call{value: reward}("");
-        require(success, "Failed to transfer rewards");
+        if (reward > 0) {
+            // Transfer the rewards
+            (bool success, ) = msg.sender.call{value: reward}("");
+            require(success, "Transfer failed");
 
-        emit RewardsWithdrawn(msg.sender, reward, block.timestamp);
+            emit RewardsWithdrawn(msg.sender, reward, block.timestamp);
+        }
     }
 
     function withdrawReferralRewards() public {
