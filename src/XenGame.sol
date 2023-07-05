@@ -156,7 +156,7 @@ contract XenGame {
                     rounds[currentRound].lastKeyPrice = newPrice;
                 }
 
-                (uint maxKeysToPurchase, uint cost) = calculateMaxKeysToPurchase(_amount);
+                (uint maxKeysToPurchase,) = calculateMaxKeysToPurchase(_amount);
 
                 // Update the reward ratio for the current round
                 //rounds[currentRound].rewardRatio += ((_amount / 2) / (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys  
@@ -282,7 +282,7 @@ contract XenGame {
         // Accumulate the ETH and track the user's early buy-in points
         rounds[currentRound].earlyBuyinEth += _amount;
         players[msg.sender].earlyBuyinPoints[currentRound] += _amount;
-
+        players[msg.sender].lastRewardRatio[currentRound] = 1;
         rounds[currentRound].isEarlyBuyin = true;
     }
 
@@ -516,10 +516,10 @@ contract XenGame {
         //console.log("player recorded key amount AFTER check for early keys called:", players[msg.sender].keycount[roundNumber]);
 
         uint256 reward = ((player.keyCount[roundNumber] / 1 ether) * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber]));
-        console.log("keys", (player.keyCount[roundNumber] / 1 ether) ,"rewardRatio", rounds[roundNumber].rewardRatio );
-        console.log("withdraw function called ", reward);
+        console.log("keys*******************", (player.keyCount[roundNumber] / 1 ether) ,"rewardRatio", rounds[roundNumber].rewardRatio );
+        console.log("withdraw function called for reward =", reward);
         require(reward > 0, "No rewards to withdraw");
-        
+        console.log("reward ratio before update", player.lastRewardRatio[roundNumber]);
         player.lastRewardRatio[roundNumber] = rounds[roundNumber].rewardRatio;
 
         // Transfer the reward to the player
@@ -560,8 +560,8 @@ contract XenGame {
         payable(winner).transfer(winnerShare);
 
         // Add to the keysFunds
-        round.keysFunds += keysFundsShare;// ***************************************************adjust the new key ratio 
-
+        //round.keysFunds += keysFundsShare;// ***************************************************adjust the new key ratio 
+        updateRoundRatio(keysFundsShare, currentRound);
         // Set the starting jackpot for the next round
         rounds[currentRound + 1].jackpot = nextRoundJackpot;
 
