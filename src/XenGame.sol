@@ -100,8 +100,8 @@ contract XenGame {
 
         if (referrer != address(0)) {
             uint referralReward = (msg.value * REFERRAL_REWARD_PERCENTAGE) / 10000;  // 10% of the incoming ETH
-
             
+            if (referralReward > 0) { // Added check here to ensure referral reward is greater than 0
                 uint splitReward = referralReward / 2;  // Split the referral reward
 
                 // Add half of the referral reward to the referrer's stored rewards
@@ -109,7 +109,7 @@ contract XenGame {
 
                 // Add the other half of the referral reward to the player's stored rewards
                 player.referralRewards += splitReward;
-            
+            }
 
             uint remaining = msg.value - referralReward;
 
@@ -140,41 +140,40 @@ contract XenGame {
         require(isRoundActive() || isRoundEnded(), "Cannot purchase keys during the round gap");
 
         if (isRoundActive()) {
-            if (block.timestamp <= rounds[currentRound].start + EARLY_BUYIN_DURATION) {
-                // If we are in the early buy-in period, follow early buy-in logic
-                buyCoreEarly(_amount);
-                
-            } else {
-                // Check if this is the first transaction after the early buy-in period
-                if (rounds[currentRound].isEarlyBuyin) {
-                    updateTotalKeysForRound();
-                    finalizeEarlyBuyinPeriod();
-                }
-
-                if (rounds[currentRound].lastKeyPrice > calculateJackpotThreshold()) {
-                    uint newPrice = resetPrice();
-                    rounds[currentRound].lastKeyPrice = newPrice;
-                }
-
-                (uint maxKeysToPurchase,) = calculateMaxKeysToPurchase(_amount);
-
-                // Update the reward ratio for the current round
-                //rounds[currentRound].rewardRatio += ((_amount / 2) / (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys  
-
-                checkForEarlyKeys();
-
-                if (players[msg.sender].lastRewardRatio[currentRound] == 0){
-                    players[msg.sender].lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio;
-                }
-
-                processKeyPurchase(maxKeysToPurchase, _amount);
-                rounds[currentRound].activePlayer = msg.sender;
-                adjustRoundEndTime(maxKeysToPurchase);
+        if (block.timestamp <= rounds[currentRound].start + EARLY_BUYIN_DURATION) {
+            // If we are in the early buy-in period, follow early buy-in logic
+            buyCoreEarly(_amount);
+        } else if (!rounds[currentRound].ended) { // Add a check for round end here
+            // Check if this is the first transaction after the early buy-in period
+            if (rounds[currentRound].isEarlyBuyin) {
+                updateTotalKeysForRound();
+                finalizeEarlyBuyinPeriod();
             }
-        } else if (isRoundEnded()) {
-            endRound();
-            startNewRound();
+
+            if (rounds[currentRound].lastKeyPrice > calculateJackpotThreshold()) {
+                uint newPrice = resetPrice();
+                rounds[currentRound].lastKeyPrice = newPrice;
+            }
+
+            (uint maxKeysToPurchase,) = calculateMaxKeysToPurchase(_amount);
+
+            // Update the reward ratio for the current round
+            //rounds[currentRound].rewardRatio += ((_amount / 2) / (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys  
+
+            checkForEarlyKeys();
+
+            if (players[msg.sender].lastRewardRatio[currentRound] == 0){
+                players[msg.sender].lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio;
+            }
+
+            processKeyPurchase(maxKeysToPurchase, _amount);
+            rounds[currentRound].activePlayer = msg.sender;
+            adjustRoundEndTime(maxKeysToPurchase);
         }
+    } else if (isRoundEnded()) {
+        endRound();
+        startNewRound();
+    }
     }
 
     function buyCoreWithKeys(uint _amount, uint _numberOfKeys) private {
@@ -184,57 +183,50 @@ contract XenGame {
         require(isRoundActive() || isRoundEnded(), "Cannot purchase keys during the round gap");
 
         if (isRoundActive()) {
-            if (block.timestamp <= rounds[currentRound].start + EARLY_BUYIN_DURATION) {
+        if (block.timestamp <= rounds[currentRound].start + EARLY_BUYIN_DURATION) {
+            // If we are in the early buy-in period, follow early buy-in logic
+            buyCoreEarly(_amount);
 
-                console.log("enter Early Buying");
-
-                // If we are in the early buy-in period, follow early buy-in logic
-                buyCoreEarly(_amount);
-
-                console.log("early eth entered", rounds[currentRound].earlyBuyinEth);
-
-            } else {
-                // Check if this is the first transaction after the early buy-in period
-                if (rounds[currentRound].isEarlyBuyin) {
-
-                    console.log("First trans after early buying");
-
-                    updateTotalKeysForRound();
-                    finalizeEarlyBuyinPeriod();
-                }
-
-                if (rounds[currentRound].lastKeyPrice > calculateJackpotThreshold()) {
-
-                    console.log("enter jackpot threshold");
-
-                    uint newPrice = resetPrice();
-                    rounds[currentRound].lastKeyPrice = newPrice;
-                }
-
-                // Calculate cost for _numberOfKeys
-                uint cost = calculatePriceForKeys(_numberOfKeys);
-                require(cost <= _amount, "Not enough ETH to buy the specified number of keys");
-                console.log("keys to buy cost ----------------", cost);
-                console.log("current round keys", rounds[currentRound].totalKeys );
-                console.log("current last key price:" , rounds[currentRound].lastKeyPrice);
-                // Update the reward ratio for the current round
-                //rounds[currentRound].rewardRatio += ((_amount / 2)/ (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys  
-
-                checkForEarlyKeys();
-                
-                if (players[msg.sender].lastRewardRatio[currentRound] == 0){
-                    players[msg.sender].lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio;
-                }
-
-                
-                processKeyPurchase(_numberOfKeys, _amount);
-                rounds[currentRound].activePlayer = msg.sender;
-                adjustRoundEndTime(_numberOfKeys);
+            console.log("enter Early Buying");
+            console.log("early eth entered", rounds[currentRound].earlyBuyinEth);
+        } else if (!rounds[currentRound].ended) {
+            // Check if this is the first transaction after the early buy-in period
+            if (rounds[currentRound].isEarlyBuyin) {
+                console.log("First trans after early buying");
+                updateTotalKeysForRound();
+                finalizeEarlyBuyinPeriod();
             }
-        } else if (isRoundEnded()) {
-            endRound();
-            startNewRound();
+
+            if (rounds[currentRound].lastKeyPrice > calculateJackpotThreshold()) {
+                console.log("enter jackpot threshold");
+                uint newPrice = resetPrice();
+                rounds[currentRound].lastKeyPrice = newPrice;
+            }
+
+            // Calculate cost for _numberOfKeys
+            uint cost = calculatePriceForKeys(_numberOfKeys);
+            require(cost <= _amount, "Not enough ETH to buy the specified number of keys");
+            console.log("keys to buy cost ----------------", cost);
+            console.log("current round keys", rounds[currentRound].totalKeys);
+            console.log("current last key price:", rounds[currentRound].lastKeyPrice);
+
+            // Update the reward ratio for the current round
+            //rounds[currentRound].rewardRatio += (_amount / (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys  
+
+            checkForEarlyKeys();
+
+            if (players[msg.sender].lastRewardRatio[currentRound] == 0) {
+                players[msg.sender].lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio;
+            }
+
+            processKeyPurchase(_numberOfKeys, _amount);
+            rounds[currentRound].activePlayer = msg.sender;
+            adjustRoundEndTime(_numberOfKeys);
         }
+    } else if (isRoundEnded()) {
+        endRound();
+        startNewRound();
+    }
     }
 
     function buyKeysWithRewards() public {
@@ -358,8 +350,14 @@ contract XenGame {
     function calculatePriceForKeys(uint _keys) public view returns (uint totalPrice) {
         uint initialKeyPrice = getKeyPrice();
         uint increasePerKey = 0.000000009 ether;
+        
+        if (_keys <= 1) {
+            totalPrice = initialKeyPrice * _keys;
+        } else {
+            uint lastPrice = initialKeyPrice + ((_keys - 1) * increasePerKey);
+            totalPrice = (_keys * (initialKeyPrice + lastPrice)) / 2;
+        }
 
-        totalPrice = (_keys * initialKeyPrice) + (increasePerKey * (_keys * (_keys - 1) / 2)); // Sum of key prices
         return totalPrice;
     }
 
@@ -560,12 +558,8 @@ contract XenGame {
 
             uint earlyKeys = ((playerPoints * 10_000_000) / totalPoints) * 1 ether;
 
-            console.log("get player keys called", earlyKeys);
-            console.log("return value", player.keyCount[_round] + earlyKeys);
-        return (player.keyCount[_round] + earlyKeys);
-        }
-        else{
-            console.log("else path taken");
+            return (player.keyCount[_round] + earlyKeys);
+        } else {
             return player.keyCount[_round];
         }
     }
