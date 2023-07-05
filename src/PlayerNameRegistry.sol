@@ -18,7 +18,7 @@ contract PlayerNameRegistry {
         dev2 = _dev2;
     }
 
-    uint private constant NAME_REGISTRATION_FEE = 20000000000000000; // 0.02 Ether in Wei
+    uint256 private constant NAME_REGISTRATION_FEE = 20000000000000000; // 0.02 Ether in Wei
 
     event PlayerNameRegistered(address playerAddress, string name);
 
@@ -56,10 +56,10 @@ contract PlayerNameRegistry {
         require(balance > 0, "No funds to distribute.");
 
         uint256 amount = balance / 2;
-        (bool success1, ) = dev1.call{value: amount}("");
+        (bool success1,) = dev1.call{value: amount}("");
         require(success1, "Ether transfer to dev1 failed.");
 
-        (bool success2, ) = dev2.call{value: amount}("");
+        (bool success2,) = dev2.call{value: amount}("");
         require(success2, "Ether transfer to dev2 failed.");
     }
 }

@@ -3,10 +3,6 @@ pragma solidity ^0.8.17;
 
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
-
-//  testing ---------------------------------------------------------------------------------------------------------------
-import "forge-std/console.sol";
-
 interface IPriceOracle {
     function calculateAveragePrice() external view returns (uint256);
 }
@@ -24,16 +20,14 @@ interface IPlayerNameRegistryBurn {
 }
 
 contract xenBurn is IBurnRedeemable {
-    
     address public xenCrypto;
     mapping(address => bool) private burnSuccessful;
     mapping(address => uint256) private lastCall;
     mapping(address => uint256) private callCount;
-    uint public totalCount;
+    uint256 public totalCount;
     address private uniswapPool = 0xC0d776E2223c9a2ad13433DAb7eC08cB9C5E76ae;
-    IPriceOracle private priceOracle; 
+    IPriceOracle private priceOracle;
     IPlayerNameRegistryBurn private playerNameRegistry;
-    
 
     constructor(address _priceOracle, address _xenCrypto, address _playerNameRegistry) {
         priceOracle = IPriceOracle(_priceOracle);
@@ -43,18 +37,16 @@ contract xenBurn is IBurnRedeemable {
 
     event TokenBurned(address indexed user, uint256 amount, string playerName);
 
-
     // Modifier to allow only human users to perform certain actions
     modifier isHuman() {
-       // require(msg.sender == tx.origin, "Only human users can perform this action");
+        // require(msg.sender == tx.origin, "Only human users can perform this action");
         _;
     }
 
     // Modifier to enforce restrictions on the frequency of calls
     modifier gatekeeping() {
         require(
-            lastCall[msg.sender] + 1 days <= block.timestamp ||
-            callCount[msg.sender] <= (totalCount + 5),
+            lastCall[msg.sender] + 1 days <= block.timestamp || callCount[msg.sender] <= (totalCount + 5),
             "Function can only be called once per 24 hours, or 5 times within the 24-hour period by different users"
         );
         _;
@@ -62,15 +54,11 @@ contract xenBurn is IBurnRedeemable {
 
     // Function to burn tokens by swapping ETH for the token
     function burnXenCrypto() public isHuman gatekeeping {
-
-        console.log("regesterNFT function msg,sender", msg.sender, "tx.origin", tx.origin);
-
         require(address(this).balance > 0, "No ETH available");
 
         // Pull player's name from game contract
         string[] memory names = playerNameRegistry.getPlayerNames(msg.sender);
         require(names.length > 0, "User must have at least 1 name registered");
-        
 
         // Amount to use for swap (98% of the contract's ETH balance)
         uint256 amountETH = address(this).balance * 98 / 100;
@@ -92,7 +80,9 @@ contract xenBurn is IBurnRedeemable {
 
         // Perform a Uniswap transaction to swap the ETH for tokens
         uint256 deadline = block.timestamp + 15; // 15 second deadline
-        uint[] memory amounts = IUniswapV2Router02(uniswapPool).swapExactETHForTokens{value: amountETH}(minTokenAmount, getPathForETHtoTOKEN(), address(this), deadline);
+        uint256[] memory amounts = IUniswapV2Router02(uniswapPool).swapExactETHForTokens{value: amountETH}(
+            minTokenAmount, getPathForETHtoTOKEN(), address(this), deadline
+        );
 
         // The actual amount of tokens received from the swap is stored in amounts[1]
         uint256 actualTokenAmount = amounts[1];
@@ -113,8 +103,6 @@ contract xenBurn is IBurnRedeemable {
 
         // Reset the burn successful status for the user
         burnSuccessful[msg.sender] = false;
-
-        
     }
 
     // Function to calculate the expected amount of tokens to be burned based on the contract's ETH balance and token price
@@ -129,8 +117,6 @@ contract xenBurn is IBurnRedeemable {
 
         // Get current token price from PriceOracle
         uint256 tokenPrice = priceOracle.calculateAveragePrice();
-
-        console.log("token price for expected burn", tokenPrice);
 
         // Calculate the expected amount of tokens to be burned
         uint256 expectedBurnAmount = (amountETH / tokenPrice) * 95 / 100;
@@ -167,13 +153,13 @@ contract xenBurn is IBurnRedeemable {
 
         // Pull player's name from the PlayerNameRegistry contract
         string[] memory names = playerNameRegistry.getPlayerNames(user);
-        
+
         string memory playerName = names[0];
 
         // Emit the TokenBurned event
         emit TokenBurned(user, amount, playerName);
     }
-  
+
     // Function to check if a user's burn operation was successful
     function wasBurnSuccessful(address user) external view returns (bool) {
         return burnSuccessful[user];

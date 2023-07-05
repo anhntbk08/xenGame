@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import '@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol';
-import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
-// for testing only 
+// for testing only
 import "forge-std/console.sol";
-
 
 contract PriceOracle {
     // Assuming these addresses are for the pairs you're interested in
@@ -23,7 +22,7 @@ contract PriceOracle {
         // token0 is the token with the lower sort order of the pair
         (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(V2_PAIR).getReserves();
         require(reserve1 != 0, "Reserve for ETH is 0");
-        
+
         // The price is calculated as the ratio of the reserves of token0 to token1
         // Assuming that token0 is XEN and token1 is ETH, this will return the price of XEN in terms of ETH
         return uint256(reserve0) / uint256(reserve1); // Returns the price as token0/token1 (XEN/ETH)
@@ -52,70 +51,67 @@ contract PriceOracle {
         // and it is shifted right by 192 (96*2) to convert from Q64.96 format to an integer
         uint256 priceToken0Token1 = uint256(sqrtPriceX96) * uint256(sqrtPriceX96) >> 96; // Price of token0 in terms of token1
 
-        console.log("price returned",priceToken0Token1);
+        console.log("price returned", priceToken0Token1);
 
         // The actual price is calculated differently depending on which token in the pair is XEN
-        if(isToken0Xen) {
+        if (isToken0Xen) {
             // If token0 is XEN, the price is already token0/token1 (XEN/Other) and can be returned directly
             return priceToken0Token1; // Return XEN/Other price
         } else {
             // If token1 is XEN, the price is token1/token0 (Other/XEN),
             // so we return the reciprocal to get the price as XEN/Other
             require(priceToken0Token1 != 0, "Price is 0");
-            return (10**36) / priceToken0Token1; // Return Other/XEN price
+            return (10 ** 36) / priceToken0Token1; // Return Other/XEN price
         }
     }
-
 
     function calculateAveragePrice() public view returns (uint256) {
-    uint256 total; // Initialize total price accumulator
-    uint256 count; // Initialize counter for the number of price points
+        uint256 total; // Initialize total price accumulator
+        uint256 count; // Initialize counter for the number of price points
 
-    // V2 price calculation
-    uint256 v2Price = calculateV2Price(); // Get the XEN/ETH price from the Uniswap V2 pool
-    if (v2Price != 0) {
-        total += v2Price; // Add the price to the total if it is not zero
-        count++; // Increase the price point count by one
-    }
-
-    // V3 XEN/ETH price calculation
-    uint256 xenEthPrice = calculateV3Price(IUniswapV3Pool(V3_XEN_ETH), true); // Get the XEN/ETH price from the Uniswap V3 pool
-    if (xenEthPrice != 0) {
-        total += xenEthPrice; // Add the price to the total if it is not zero
-        count++; // Increase the price point count by one
-    }
-
-    // V3 XEN/USDT price calculation
-    uint256 xenUsdtPrice = calculateV3Price(IUniswapV3Pool(V3_XEN_USDT), true); // Get the XEN/USDT price
-    if (xenUsdtPrice != 0) {
-        // Convert XEN/USDT to XEN/ETH using the ETH/USDT price
-        uint256 ethUsdtPrice = calculateV3Price(IUniswapV3Pool(V3_ETH_USDT), false); // Get the ETH/USDT price
-        if (ethUsdtPrice != 0) {
-            uint256 xenEthUsdtPrice = xenUsdtPrice / ethUsdtPrice; // Convert XEN/USDT to XEN/ETH
-            total += xenEthUsdtPrice; // Add the converted price to the total
+        // V2 price calculation
+        uint256 v2Price = calculateV2Price(); // Get the XEN/ETH price from the Uniswap V2 pool
+        if (v2Price != 0) {
+            total += v2Price; // Add the price to the total if it is not zero
             count++; // Increase the price point count by one
         }
-    }
 
-    // V3 XEN/USDC price calculation
-    uint256 xenUsdcPrice = calculateV3Price(IUniswapV3Pool(V3_XEN_USDC), true); // Get the XEN/USDC price
-    if (xenUsdcPrice != 0) {
-        // Convert XEN/USDC to XEN/ETH using the ETH/USDC price
-        uint256 ethUsdcPrice = calculateV3Price(IUniswapV3Pool(V3_ETH_USDC), false); // Get the ETH/USDC price
-        if (ethUsdcPrice != 0) {
-            uint256 xenEthUsdcPrice = xenUsdcPrice / ethUsdcPrice; // Convert XEN/USDC to XEN/ETH
-            total += xenEthUsdcPrice; // Add the converted price to the total
+        // V3 XEN/ETH price calculation
+        uint256 xenEthPrice = calculateV3Price(IUniswapV3Pool(V3_XEN_ETH), true); // Get the XEN/ETH price from the Uniswap V3 pool
+        if (xenEthPrice != 0) {
+            total += xenEthPrice; // Add the price to the total if it is not zero
             count++; // Increase the price point count by one
         }
+
+        // V3 XEN/USDT price calculation
+        uint256 xenUsdtPrice = calculateV3Price(IUniswapV3Pool(V3_XEN_USDT), true); // Get the XEN/USDT price
+        if (xenUsdtPrice != 0) {
+            // Convert XEN/USDT to XEN/ETH using the ETH/USDT price
+            uint256 ethUsdtPrice = calculateV3Price(IUniswapV3Pool(V3_ETH_USDT), false); // Get the ETH/USDT price
+            if (ethUsdtPrice != 0) {
+                uint256 xenEthUsdtPrice = xenUsdtPrice / ethUsdtPrice; // Convert XEN/USDT to XEN/ETH
+                total += xenEthUsdtPrice; // Add the converted price to the total
+                count++; // Increase the price point count by one
+            }
+        }
+
+        // V3 XEN/USDC price calculation
+        uint256 xenUsdcPrice = calculateV3Price(IUniswapV3Pool(V3_XEN_USDC), true); // Get the XEN/USDC price
+        if (xenUsdcPrice != 0) {
+            // Convert XEN/USDC to XEN/ETH using the ETH/USDC price
+            uint256 ethUsdcPrice = calculateV3Price(IUniswapV3Pool(V3_ETH_USDC), false); // Get the ETH/USDC price
+            if (ethUsdcPrice != 0) {
+                uint256 xenEthUsdcPrice = xenUsdcPrice / ethUsdcPrice; // Convert XEN/USDC to XEN/ETH
+                total += xenEthUsdcPrice; // Add the converted price to the total
+                count++; // Increase the price point count by one
+            }
+        }
+
+        // Return the average price, dividing the total by the number of price points
+        // The result is the average price of XEN in terms of ETH
+        require(count != 0, "No valid price points");
+
+        console.log("count", count);
+        return total / count;
     }
-
-    // Return the average price, dividing the total by the number of price points
-    // The result is the average price of XEN in terms of ETH
-    require(count != 0, "No valid price points");
-
-    console.log("count", count);
-    return total / count;
-}
-
-
 }
