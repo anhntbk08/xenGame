@@ -91,12 +91,15 @@ contract XenGameTest is Test {
     }
 
     function testIsRoundActive() public {
+        testBuyWithReferral();
         bool roundStatus = xenGameInstance.isRoundActive();
         assertTrue(roundStatus, "Round should be active.");
     }
 
-    function testFailIsRoundEndedatStart() public {
+    function testIsRoundIsNotEndedatStart() public {
+        testBuyWithReferral();
         bool roundStatus = xenGameInstance.isRoundEnded();
+        console.log("roundStatus :", roundStatus);
         assertFalse(roundStatus, "Round should not be ended.");
     }
 
@@ -423,55 +426,9 @@ contract XenGameTest is Test {
         _testGetRoundStats();
     }
 
-    function testPlayerNameRegistry() public {
-        uint256 NAME_REGISTRATION_FEE = 20000000000000000000; // 0.02 Ether in Wei
-
-        // Registering a name with sufficient funds should succeed
-        try playerNameRegistry.registerPlayerName{value: NAME_REGISTRATION_FEE}(msg.sender, "Alice") {
-            string memory name = playerNameRegistry.getPlayerFirstName(msg.sender);
-            assertTrue(keccak256(bytes(name)) == keccak256(bytes("Alice")), "Name was not registered correctly.");
-        } catch Error(string memory reason) {
-            fail(reason);
-        } catch (bytes memory) /*lowLevelData*/ {
-            fail("Low level error on registering name");
-        }
-
-        // Registering the same name again should fail
-        try playerNameRegistry.registerPlayerName{value: NAME_REGISTRATION_FEE}(msg.sender, "Alice") {
-            fail("Registering duplicate name should fail.");
-        } catch Error(string memory reason) {
-            assertTrue(
-                keccak256(bytes(reason)) == keccak256(bytes("This name is already in use.")),
-                "Incorrect error message for duplicate name."
-            );
-        } catch (bytes memory) /*lowLevelData*/ {
-            fail("Low level error on registering duplicate name");
-        }
-
-        // Registering a name without sufficient funds should fail
-        try playerNameRegistry.registerPlayerName{value: 10 ether}(msg.sender, "Bob") {
-            fail("Registering name without sufficient funds should fail.");
-        } catch Error(string memory reason) {
-            assertTrue(
-                keccak256(bytes(reason)) == keccak256(bytes("Insufficient funds to register the name.")),
-                "Incorrect error message for insufficient funds."
-            );
-        } catch (bytes memory) /*lowLevelData*/ {
-            fail("Low level error on registering name without sufficient funds");
-        }
-
-        // Check that the player name getter functions work correctly
-        string[] memory names = playerNameRegistry.getPlayerNames(msg.sender);
-        assertTrue(names.length > 0, "Player has no registered names.");
-
-        string memory firstName = playerNameRegistry.getPlayerFirstName(msg.sender);
-        assertTrue(
-            keccak256(bytes(firstName)) == keccak256(bytes(names[0])), "First name getter returned incorrect result."
-        );
-    }
-
+    
     function testPlayerNameRegistrationSuccess() public {
-        uint256 NAME_REGISTRATION_FEE = 20000000000000000000; // 0.02 Ether in Wei
+        uint256 NAME_REGISTRATION_FEE = 20000000000000000; // 0.02 Ether in Wei
         string memory name = "Alice";
 
         try playerNameRegistry.registerPlayerName{value: NAME_REGISTRATION_FEE}(msg.sender, name) {
@@ -505,7 +462,7 @@ contract XenGameTest is Test {
     function testPlayerNameRegistrationInsufficientFunds() public {
         string memory name = "Bob";
 
-        try playerNameRegistry.registerPlayerName{value: 10 ether}(msg.sender, name) {
+        try playerNameRegistry.registerPlayerName{value: 19000000000000000}(msg.sender, name) {
             fail("Registering name without sufficient funds should fail.");
         } catch Error(string memory reason) {
             assertTrue(
@@ -521,7 +478,7 @@ contract XenGameTest is Test {
         string[] memory expectedNames = new string[](2);
         expectedNames[0] = "Alice";
         expectedNames[1] = "Bob";
-        uint256 NAME_REGISTRATION_FEE = 20000000000000000000; // 0.02 Ether in Wei
+        uint256 NAME_REGISTRATION_FEE = 20000000000000000; // 0.02 Ether in Wei
 
         // Register two names first
         playerNameRegistry.registerPlayerName{value: NAME_REGISTRATION_FEE}(msg.sender, expectedNames[0]);
@@ -536,7 +493,7 @@ contract XenGameTest is Test {
 
     function testGetPlayerFirstName() public {
         string memory name = "Alice";
-        uint256 NAME_REGISTRATION_FEE = 20000000000000000000; // 0.02 Ether in Wei
+        uint256 NAME_REGISTRATION_FEE = 20000000000000000; // 0.02 Ether in Wei
 
         // Register a name first
         playerNameRegistry.registerPlayerName{value: NAME_REGISTRATION_FEE}(msg.sender, name);
@@ -550,7 +507,7 @@ contract XenGameTest is Test {
     function testPlayerNameRegistryReferralRewards() public {
         testBuyKeyNormalGamePlayNOKeys();
         // Register a name for user 1
-        uint256 NAME_REGISTRATION_FEE = 20000000000000000000; // 0.02 Ether in Wei
+        uint256 NAME_REGISTRATION_FEE = 20000000000000000; // 0.02 Ether in Wei
         string memory userName = "Alice";
 
         try playerNameRegistry.registerPlayerName{value: NAME_REGISTRATION_FEE}(address(1), userName) {

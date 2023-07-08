@@ -283,7 +283,7 @@ contract XenGame {
 
     function isRoundEnded() public view returns (bool) {
         uint256 _roundId = currentRound;
-        return block.timestamp >= rounds[_roundId].end && !rounds[_roundId].ended;
+        return block.timestamp >= rounds[_roundId].end;
     }
 
     function updateTotalKeysForRound() private {
