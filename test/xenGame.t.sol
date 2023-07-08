@@ -176,8 +176,14 @@ contract XenGameTest is Test {
     }
 
     function _testGetPlayerInfo(address playerAddress, uint256 roundNumber) internal view {
-        (uint256 keyCount, uint256 earlyBuyinPoints, uint256 referralRewards, uint256 lastRewardRatio) =
-            xenGameInstance.getPlayerInfo(playerAddress, roundNumber);
+        (
+            uint256 keyCount, 
+            uint256 earlyBuyinPoints, 
+            uint256 referralRewards, 
+            uint256 lastRewardRatio,
+            uint256 keyRewards,
+            uint256 numberOfReferrals
+        ) = xenGameInstance.getPlayerInfo(playerAddress, roundNumber);
 
         console.log("----------------------------------- PLAYER INFO -------------------------------------");
         console.log("Player Address: ", playerAddress);
@@ -186,8 +192,11 @@ contract XenGameTest is Test {
         console.log("Early Buyin Points: ", earlyBuyinPoints);
         console.log("Referral Rewards: ", referralRewards);
         console.log("Last Reward Ratio: ", lastRewardRatio);
+        console.log("Key Rewards: ", keyRewards);
+        console.log("Number of Referrals: ", numberOfReferrals);
         console.log("");
     }
+
 
     function testFailBuyWithReferralOnRoundGap() public {
         uint256 initialETHAmount = 0.1 ether;
@@ -552,9 +561,11 @@ contract XenGameTest is Test {
             uint256 numberOfKeys = 10;
 
             try xenGameInstance.buyWithReferral{value: 5 ether}(userName, numberOfKeys) {
-                // Check if referral rewards are recorded in the player struct for user 1
-                (,, uint256 referralRewards,) = xenGameInstance.getPlayerInfo(address(1), 1);
+                // Check if referral rewards and key rewards are recorded in the player struct for user 1
+                (,, uint256 referralRewards,, uint256 keyRewards,) = xenGameInstance.getPlayerInfo(address(1), 1);
                 console.log("Referral Rewards for User 1:", referralRewards);
+                console.log("Key Rewards for User 1:", keyRewards);
+
 
                 assertTrue(referralRewards > 0, "Referral rewards not recorded in the player struct for user 1.");
             } catch Error(string memory reason) {

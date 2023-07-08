@@ -45,10 +45,11 @@ contract XenGame {
     struct Player {
         mapping(uint256 => uint256) keyCount; //round to keys
         mapping(uint256 => uint256) earlyBuyinPoints; // Track early buyin points for each round
-        uint256 round;
         uint256 referralRewards;
         string lastReferrer; // Track last referrer name
         mapping(uint256 => uint256) lastRewardRatio; // New variable
+        uint256 keyRewards;
+        uint256 numberOfReferrals; 
     }
 
     struct Round {
@@ -99,6 +100,7 @@ contract XenGame {
 
                 // Add half of the referral reward to the referrer's stored rewards
                 players[referrer].referralRewards += splitReward;
+                players[referrer].numberOfReferrals++;
 
                 // Add the other half of the referral reward to the player's stored rewards
                 player.referralRewards += splitReward;
@@ -130,6 +132,7 @@ contract XenGame {
         if (isRoundEnded()) {
             endRound();
             startNewRound();
+            players[msg.sender].keyRewards += _amount;
             return;
         }
 
@@ -155,13 +158,13 @@ contract XenGame {
 
                 // Transfer any remaining ETH back to the player and store it in their referral rewards
                 if (remainingEth > 0) {
-                    players[msg.sender].referralRewards += remainingEth;
+                    players[msg.sender].keyRewards += remainingEth;
                 }
 
                 // Update the reward ratio for the current round
                 //rounds[currentRound].rewardRatio += ((_amount / 2) / (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys
 
-                withdrawRewards(currentRound);
+                processRewards(currentRound);
 
                 if (players[msg.sender].lastRewardRatio[currentRound] == 0) {
                     players[msg.sender].lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio;
@@ -180,6 +183,7 @@ contract XenGame {
         if (isRoundEnded()) {
             endRound();
             startNewRound();
+            players[msg.sender].keyRewards += _amount;
             return;
         }
 
@@ -206,7 +210,7 @@ contract XenGame {
                 uint256 remainingEth = _amount - cost;
 
 
-                withdrawRewards(currentRound);
+                processRewards(currentRound);
 
                 if (players[msg.sender].lastRewardRatio[currentRound] == 0) {
                     players[msg.sender].lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio;
@@ -217,7 +221,7 @@ contract XenGame {
                 adjustRoundEndTime(_numberOfKeys);
 
                 if (remainingEth > 0) {
-                    players[msg.sender].referralRewards += remainingEth;
+                    players[msg.sender].keyRewards += remainingEth;
                 }
             }
         } 
@@ -234,6 +238,12 @@ contract XenGame {
             (player.keyCount[currentRound] / 1 ether)
                 * (rounds[currentRound].rewardRatio - player.lastRewardRatio[currentRound])
         ); // using full keys for reward calc
+
+        // Add any keyRewards to the calculated reward
+        reward += player.keyRewards;
+
+        // Reset player's keyRewards
+        player.keyRewards = 0;
 
         require(reward > 0, "No rewards to withdraw");
 
@@ -279,6 +289,11 @@ contract XenGame {
     function updateTotalKeysForRound() private {
         // Update total keys for the round with the starting keys
         rounds[currentRound].totalKeys += 10000000 ether;
+        if (rounds[currentRound].earlyBuyinEth > 0) {
+            rounds[currentRound].totalKeys += 10000000 ether;
+        } else {
+            rounds[currentRound].totalKeys += 1 ether;
+        }
     }
 
     function finalizeEarlyBuyinPeriod() private {
@@ -286,7 +301,11 @@ contract XenGame {
         rounds[currentRound].isEarlyBuyin = false;
 
         // Calculate the last key price for the round
-        rounds[currentRound].lastKeyPrice = rounds[currentRound].earlyBuyinEth / (10 ** 7); // using full keys  ********************************************
+        if (rounds[currentRound].earlyBuyinEth > 0) {
+            rounds[currentRound].lastKeyPrice = rounds[currentRound].earlyBuyinEth / (10 ** 7); // using full keys
+        } else {
+            rounds[currentRound].lastKeyPrice = 0.000000009 ether; // Set to 0.000000009 ether if there is no early buying ETH or no keys purchased
+        }
 
         // Set reward ratio
         rounds[currentRound].rewardRatio = 1; // set low non
@@ -428,6 +447,23 @@ contract XenGame {
         nftRegistry.registerNFT(tokenId);
     }
 
+    function processRewards(uint256 roundNumber) public {
+        Player storage player = players[msg.sender];
+
+        checkForEarlyKeys();
+
+        // Calculate the player's rewards
+        uint256 reward = (
+            (player.keyCount[roundNumber] / 1 ether)
+                * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])
+        ); 
+
+        player.lastRewardRatio[roundNumber] = rounds[roundNumber].rewardRatio;
+
+        // Add the reward to the player's keyRewards instead of sending it
+        player.keyRewards += reward;
+    }
+
     function buyAndBurn() public {
         // Burn fund logic
     }
@@ -438,10 +474,17 @@ contract XenGame {
         checkForEarlyKeys();
 
         uint256 reward = (
-            (player.keyCount[roundNumber] * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber]))
-                / PRECISION
+            (player.keyCount[roundNumber] / 1 ether)
+                * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])
         );
+
         player.lastRewardRatio[roundNumber] = rounds[roundNumber].rewardRatio;
+
+        // Add the keyRewards to the normal rewards
+        reward += player.keyRewards;
+
+        // Reset the player's keyRewards
+        player.keyRewards = 0;
 
         if (reward > 0) {
             // Transfer the rewards
@@ -510,8 +553,13 @@ contract XenGame {
         uint256 pendingRewards = (
             player.keyCount[currentRound] * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])
         ) / PRECISION;
+
+        // Add the keyRewards to the pending rewards
+        pendingRewards += player.keyRewards;
+
         return pendingRewards;
     }
+
 
     function getPlayerKeysCount(address playerAddress, uint256 _round) public view returns (uint256) {
         Player storage player = players[playerAddress];
@@ -571,13 +619,23 @@ contract XenGame {
     function getPlayerInfo(address playerAddress, uint256 roundNumber)
         public
         view
-        returns (uint256 keyCount, uint256 earlyBuyinPoints, uint256 referralRewards, uint256 lastRewardRatio)
+        returns (
+            uint256 keyCount, 
+            uint256 earlyBuyinPoints, 
+            uint256 referralRewards, 
+            uint256 lastRewardRatio,
+            uint256 keyRewards,
+            uint256 numberOfReferrals
+        )
     {
         keyCount = getPlayerKeysCount(playerAddress, roundNumber);
         earlyBuyinPoints = players[playerAddress].earlyBuyinPoints[roundNumber];
         referralRewards = players[playerAddress].referralRewards;
         lastRewardRatio = players[playerAddress].lastRewardRatio[roundNumber];
+        keyRewards = players[playerAddress].keyRewards;
+        numberOfReferrals = players[playerAddress].numberOfReferrals;
     }
+
 
     function getRoundStart(uint256 roundId) public view returns (uint256) {
         return rounds[roundId].start;
