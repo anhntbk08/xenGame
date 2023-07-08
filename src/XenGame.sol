@@ -102,6 +102,8 @@ contract XenGame {
 
                 // Add the other half of the referral reward to the player's stored rewards
                 player.referralRewards += splitReward;
+
+                emit ReferralPaid(msg.sender, referrer, splitReward, block.timestamp);
             }
 
             uint256 remaining = msg.value - referralReward;
@@ -125,6 +127,12 @@ contract XenGame {
     function buyCore(uint256 _amount) private {
         require(isRoundActive() || isRoundEnded(), "Cannot purchase keys during the round gap");
 
+        if (isRoundEnded()) {
+            endRound();
+            startNewRound();
+            return;
+        }
+
         if (isRoundActive()) {
             if (block.timestamp <= rounds[currentRound].start + EARLY_BUYIN_DURATION) {
                 // If we are in the early buy-in period, follow early buy-in logic
@@ -142,7 +150,13 @@ contract XenGame {
                     rounds[currentRound].lastKeyPrice = newPrice;
                 }
 
-                (uint256 maxKeysToPurchase,) = calculateMaxKeysToPurchase(_amount);
+                (uint256 maxKeysToPurchase, uint256 totalCost) = calculateMaxKeysToPurchase(_amount);
+                    uint256 remainingEth = _amount - totalCost;
+
+                // Transfer any remaining ETH back to the player and store it in their referral rewards
+                if (remainingEth > 0) {
+                    players[msg.sender].referralRewards += remainingEth;
+                }
 
                 // Update the reward ratio for the current round
                 //rounds[currentRound].rewardRatio += ((_amount / 2) / (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys
@@ -153,18 +167,21 @@ contract XenGame {
                     players[msg.sender].lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio;
                 }
 
-                processKeyPurchase(maxKeysToPurchase, _amount);
+                processKeyPurchase(maxKeysToPurchase, totalCost);
                 rounds[currentRound].activePlayer = msg.sender;
                 adjustRoundEndTime(maxKeysToPurchase);
             }
-        } else if (isRoundEnded()) {
-            endRound();
-            startNewRound();
-        }
+        } 
     }
 
     function buyCoreWithKeys(uint256 _amount, uint256 _numberOfKeys) private {
         require(isRoundActive() || isRoundEnded(), "Cannot purchase keys during the round gap");
+
+        if (isRoundEnded()) {
+            endRound();
+            startNewRound();
+            return;
+        }
 
         if (isRoundActive()) {
             if (block.timestamp <= rounds[currentRound].start + EARLY_BUYIN_DURATION) {
@@ -186,8 +203,8 @@ contract XenGame {
                 uint256 cost = calculatePriceForKeys(_numberOfKeys);
                 require(cost <= _amount, "Not enough ETH to buy the specified number of keys");
 
-                // Update the reward ratio for the current round
-                //rounds[currentRound].rewardRatio += (_amount / (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys
+                uint256 remainingEth = _amount - cost;
+
 
                 withdrawRewards(currentRound);
 
@@ -195,14 +212,15 @@ contract XenGame {
                     players[msg.sender].lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio;
                 }
 
-                processKeyPurchase(_numberOfKeys, _amount);
+                processKeyPurchase(_numberOfKeys, cost);
                 rounds[currentRound].activePlayer = msg.sender;
                 adjustRoundEndTime(_numberOfKeys);
+
+                if (remainingEth > 0) {
+                    players[msg.sender].referralRewards += remainingEth;
+                }
             }
-        } else if (isRoundEnded()) {
-            endRound();
-            startNewRound();
-        }
+        } 
     }
 
     function buyKeysWithRewards() public {
@@ -228,19 +246,8 @@ contract XenGame {
         // Make sure there are enough rewards to purchase at least one key
         require(maxKeysToPurchase > 0, "Not enough rewards to purchase any keys");
 
-        // Update the reward ratio for the current round
-        //updateRoundRatio(cost, currentRound);
-        //rounds[currentRound].rewardRatio += (cost * PRECISION) / rounds[currentRound].totalKeys; // ****** Uddating using fractional keys *******
-
-        // Process the key purchase
-
-        processKeyPurchase(maxKeysToPurchase, reward);
-
-        // Update the active player for the round
-        rounds[currentRound].activePlayer = msg.sender;
-
-        // Adjust the round end time based on the keys purchased
-        adjustRoundEndTime(maxKeysToPurchase);
+        // Buy keys using rewards
+        buyCore(reward);
     }
 
     function buyCoreEarly(uint256 _amount) private {
@@ -282,7 +289,7 @@ contract XenGame {
         rounds[currentRound].lastKeyPrice = rounds[currentRound].earlyBuyinEth / (10 ** 7); // using full keys  ********************************************
 
         // Set reward ratio
-        //rounds[currentRound].rewardRatio = 1; // set low non
+        rounds[currentRound].rewardRatio = 1; // set low non
 
         // Add early buy-in funds to the jackpot
         rounds[currentRound].jackpot += rounds[currentRound].earlyBuyinEth;
@@ -411,6 +418,8 @@ contract XenGame {
     function registerPlayerName(string memory name) public payable {
         require(msg.value >= NAME_REGISTRATION_FEE, "Insufficient funds to register the name.");
         playerNameRegistry.registerPlayerName{value: msg.value}(msg.sender, name);
+        emit PlayerNameRegistered(msg.sender, name, block.timestamp);
+
     }
 
     function registerNFT(uint256 tokenId) external {
@@ -484,6 +493,8 @@ contract XenGame {
         nftRegistry.addToPool{value: currentRoundNftShare}();
 
         round.ended = true;
+
+        emit RoundEnded(currentRound, winner, jackpot, winnerShare, keysFundsShare, currentRoundNftShare, nextRoundJackpot, block.timestamp);
     }
 
     function startNewRound() private {
@@ -491,6 +502,7 @@ contract XenGame {
         rounds[currentRound].start = block.timestamp + ROUND_GAP; // Add ROUND_GAP to the start time
         rounds[currentRound].end = rounds[currentRound].start + 2 hours; // Set end time to start time + round duration  **************chnaged starting time for testing
         rounds[currentRound].ended = false;
+        emit NewRoundStarted(currentRound, rounds[currentRound].start, rounds[currentRound].end);
     }
 
     function getPendingRewards(address playerAddress, uint256 roundNumber) public view returns (uint256) {
@@ -586,4 +598,9 @@ contract XenGame {
     event BuyAndDistribute(address buyer, uint256 amount);
     event ReferralRewardsWithdrawn(address indexed player, uint256 amount, uint256 timestamp);
     event RewardsWithdrawn(address indexed player, uint256 amount, uint256 timestamp);
+    event RoundEnded(uint256 roundId, address winner, uint256 jackpot, uint256 winnerShare, uint256 keysFundsShare, uint256 currentRoundNftShare, uint256 nextRoundJackpot, uint256 timestamp);
+    event NewRoundStarted(uint256 roundId, uint256 startTimestamp, uint256 endTimestamp);
+    event PlayerNameRegistered(address player, string name, uint256 timestamp);
+    event ReferralPaid(address player, address referrer, uint256 amount, uint256 timestamp);
+
 }
