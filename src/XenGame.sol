@@ -367,6 +367,7 @@ contract XenGame {
         rounds[currentRound].lastKeyPrice = finalKeyPrice;
 
         distributeFunds(_amount);
+        emit BuyAndDistribute(msg.sender,  maxKeysToPurchase);
     }
 
     function checkForEarlyKeys() private {
