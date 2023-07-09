@@ -156,10 +156,10 @@ contract XenGame {
                 (uint256 maxKeysToPurchase, uint256 totalCost) = calculateMaxKeysToPurchase(_amount);
                     uint256 remainingEth = _amount - totalCost;
 
-                // Transfer any remaining ETH back to the player and store it in their referral rewards
-                if (remainingEth > 0) {
-                    players[msg.sender].keyRewards += remainingEth;
-                }
+                // // Transfer any remaining ETH back to the player and store it in their referral rewards
+                // if (remainingEth > 0) {
+                //     players[msg.sender].keyRewards += remainingEth;
+                // }
 
                 // Update the reward ratio for the current round
                 //rounds[currentRound].rewardRatio += ((_amount / 2) / (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys
@@ -220,9 +220,9 @@ contract XenGame {
                 rounds[currentRound].activePlayer = msg.sender;
                 adjustRoundEndTime(_numberOfKeys);
 
-                if (remainingEth > 0) {
-                    players[msg.sender].keyRewards += remainingEth;
-                }
+                // if (remainingEth > 0) {
+                //     players[msg.sender].keyRewards += remainingEth;
+                // }
             }
         } 
     }
@@ -448,21 +448,24 @@ contract XenGame {
         nftRegistry.registerNFT(tokenId);
     }
 
-    function processRewards(uint256 roundNumber) public {
+    function processRewards(uint256 roundNumber) private  {
         Player storage player = players[msg.sender];
 
         checkForEarlyKeys();
 
-        // Calculate the player's rewards
-        uint256 reward = (
-            (player.keyCount[roundNumber] / 1 ether)
-                * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])
-        ); 
+        // Only calculate rewards if player has at least one key
+        if (player.keyCount[roundNumber] > 0) {
+            // Calculate the player's rewards
+            uint256 reward = (
+                (player.keyCount[roundNumber] / 1 ether)
+                    * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])
+            ); 
 
-        player.lastRewardRatio[roundNumber] = rounds[roundNumber].rewardRatio;
+            player.lastRewardRatio[roundNumber] = rounds[roundNumber].rewardRatio;
 
-        // Add the reward to the player's keyRewards instead of sending it
-        player.keyRewards += reward;
+            // Add the reward to the player's keyRewards instead of sending it
+            player.keyRewards += reward;
+        }
     }
 
     function buyAndBurn() public {
@@ -470,45 +473,48 @@ contract XenGame {
     }
 
     function withdrawRewards(uint256 roundNumber) public {
-        Player storage player = players[msg.sender];
+    Player storage player = players[msg.sender];
+    address payable senderPayable = payable(msg.sender);  // Explicit casting
 
-        checkForEarlyKeys();
 
-        uint256 reward = (
-            (player.keyCount[roundNumber] / 1 ether)
-                * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])
-        );
+    checkForEarlyKeys();
 
-        player.lastRewardRatio[roundNumber] = rounds[roundNumber].rewardRatio;
+    uint256 reward = (
+        (player.keyCount[roundNumber] / 1 ether)
+            * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])
+    );
 
-        // Add the keyRewards to the normal rewards
-        reward += player.keyRewards;
+    player.lastRewardRatio[roundNumber] = rounds[roundNumber].rewardRatio;
 
-        // Reset the player's keyRewards
-        player.keyRewards = 0;
+    // Add the keyRewards to the normal rewards
+    reward += player.keyRewards;
 
-        if (reward > 0) {
-            // Transfer the rewards
-            (bool success,) = msg.sender.call{value: reward}("");
-            require(success, "Transfer failed");
+    // Reset the player's keyRewards
+    player.keyRewards = 0;
 
-            emit RewardsWithdrawn(msg.sender, reward, block.timestamp);
-        }
+    if (reward > 0) {
+        // Transfer the rewards
+        senderPayable.transfer(reward);
+
+        emit RewardsWithdrawn(msg.sender, reward, block.timestamp);
     }
+}
 
-    function withdrawReferralRewards() public {
-        uint256 rewardAmount = players[msg.sender].referralRewards;
-        require(rewardAmount > 0, "No referral rewards to withdraw");
+function withdrawReferralRewards() public {
+    uint256 rewardAmount = players[msg.sender].referralRewards;
+    require(rewardAmount > 0, "No referral rewards to withdraw");
+    address payable senderPayable = payable(msg.sender);  // Explicit casting
 
-        // Reset the player's referral rewards before sending to prevent re-entrancy attacks
-        players[msg.sender].referralRewards = 0;
 
-        // transfer the rewards
-        (bool success,) = msg.sender.call{value: rewardAmount}("");
-        require(success, "Transfer failed.");
+    // Reset the player's referral rewards before sending to prevent re-entrancy attacks
+    players[msg.sender].referralRewards = 0;
 
-        emit ReferralRewardsWithdrawn(msg.sender, rewardAmount, block.timestamp);
-    }
+    // transfer the rewards
+    senderPayable.transfer(rewardAmount);
+
+    emit ReferralRewardsWithdrawn(msg.sender, rewardAmount, block.timestamp);
+}
+
 
     function endRound() private {
         Round storage round = rounds[currentRound];
