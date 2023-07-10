@@ -77,17 +77,16 @@ contract NFTRegistry {
         uint256 rewardPoints = getTokenWeight(tokenId);
 
         // Check if the NFT was previously registered to a different user
-        address previousOwner = getNFTOwner(tokenId);
+        address  previousOwner = getNFTOwner(tokenId);
         require(previousOwner != tx.origin, "You already have this NFT regestered");
         if (previousOwner != address(0) && previousOwner != tx.origin) {
             User storage previousOwnerData = users[previousOwner];
             uint256 previousRewardPoints = previousOwnerData.userPoints;
             uint256 previousRewardAmount = calculateReward(previousOwner);
-
+            address payable previousOwnerpay = payable(previousOwner);
             // Pay the previous owner their rewards
-            (bool success,) = previousOwner.call{value: previousRewardAmount}("");
-            require(success, "Reward payment failed.");
-
+            previousOwnerpay.transfer(previousRewardAmount);
+            
             // Remove the previous owner's points
             previousOwnerData.userPoints -= previousRewardPoints;
         }
@@ -167,8 +166,8 @@ contract NFTRegistry {
         userData.lastRewardRatio = rewardRatio;
 
         // Interactions
-        bool success = payable(msg.sender).send(rewardAmount);
-        require(success, "Reward withdrawal failed to send rewards.");
+        payable(msg.sender).transfer(rewardAmount);
+        
     }
 
     function _isNFTOwner(uint256 tokenId, address owner) private view returns (bool) {
