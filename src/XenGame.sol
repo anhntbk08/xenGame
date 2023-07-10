@@ -156,13 +156,10 @@ contract XenGame {
                 (uint256 maxKeysToPurchase, uint256 totalCost) = calculateMaxKeysToPurchase(_amount);
                     uint256 remainingEth = _amount - totalCost;
 
-                // // Transfer any remaining ETH back to the player and store it in their referral rewards
-                // if (remainingEth > 0) {
-                //     players[msg.sender].keyRewards += remainingEth;
-                // }
-
-                // Update the reward ratio for the current round
-                //rounds[currentRound].rewardRatio += ((_amount / 2) / (rounds[currentRound].totalKeys / 1 ether)); // using formatted keys
+                // Transfer any remaining ETH back to the player and store it in their key rewards
+                if (remainingEth > 0) {
+                    players[msg.sender].keyRewards += remainingEth;
+                }
 
                 processRewards(currentRound);
 
@@ -220,9 +217,9 @@ contract XenGame {
                 rounds[currentRound].activePlayer = msg.sender;
                 adjustRoundEndTime(_numberOfKeys);
 
-                // if (remainingEth > 0) {
-                //     players[msg.sender].keyRewards += remainingEth;
-                // }
+                if (remainingEth > 0) {
+                    players[msg.sender].keyRewards += remainingEth;
+                }
             }
         } 
     }
@@ -416,10 +413,8 @@ contract XenGame {
     function distributeFunds(uint256 _amount) private {
         uint256 keysFund = (_amount * KEYS_FUND_PERCENTAGE) / 10000;
 
-        //rounds[currentRound].keysFunds += keysFund;
-
         updateRoundRatio(keysFund, currentRound);
-        //rounds[currentRound].rewardRatio += (keysFund / (rounds[currentRound].totalKeys / 1 ether)); // updating ratio with full keys
+        
 
         uint256 jackpot = (_amount * JACKPOT_PERCENTAGE) / 10000;
         rounds[currentRound].jackpot += jackpot;
@@ -486,7 +481,7 @@ contract XenGame {
 
     player.lastRewardRatio[roundNumber] = rounds[roundNumber].rewardRatio;
 
-    // Add the keyRewards to the normal rewards
+    // Add the preprocessed keyRewards to the normal rewards
     reward += player.keyRewards;
 
     // Reset the player's keyRewards
@@ -534,8 +529,8 @@ function withdrawReferralRewards() public {
         payable(winner).transfer(winnerShare);
 
         // Add to the keysFunds
-        //round.keysFunds += keysFundsShare;// ***************************************************adjust the new key ratio
         updateRoundRatio(keysFundsShare, currentRound);
+
         // Set the starting jackpot for the next round
         rounds[currentRound + 1].jackpot = nextRoundJackpot;
 
@@ -639,7 +634,7 @@ function withdrawReferralRewards() public {
         earlyBuyinPoints = players[playerAddress].earlyBuyinPoints[roundNumber];
         referralRewards = players[playerAddress].referralRewards;
         lastRewardRatio = players[playerAddress].lastRewardRatio[roundNumber];
-        keyRewards = players[playerAddress].keyRewards;
+        keyRewards = getPendingRewards(playerAddress,  roundNumber);
         numberOfReferrals = players[playerAddress].numberOfReferrals;
     }
 
