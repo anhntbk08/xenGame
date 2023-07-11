@@ -364,7 +364,7 @@ contract XenGame {
         rounds[currentRound].lastKeyPrice = finalKeyPrice;
 
         distributeFunds(_amount);
-        emit BuyAndDistribute(msg.sender,  maxKeysToPurchase, block.timestamp);
+        emit BuyAndDistribute(msg.sender,  maxKeysToPurchase, finalKeyPrice,  block.timestamp);
     }
 
     function checkForEarlyKeys() private {
@@ -655,7 +655,7 @@ function withdrawReferralRewards() public {
         return a > b ? a : b;
     }
 
-    event BuyAndDistribute(address buyer, uint256 amount, uint256 timestamp);
+    event BuyAndDistribute(address buyer, uint256 amount, uint256 keyPrice, uint256 timestamp);
     event ReferralRewardsWithdrawn(address indexed player, uint256 amount, uint256 timestamp);
     event RewardsWithdrawn(address indexed player, uint256 amount, uint256 timestamp);
     event RoundEnded(uint256 roundId, address winner, uint256 jackpot, uint256 winnerShare, uint256 keysFundsShare, uint256 currentRoundNftShare, uint256 nextRoundJackpot, uint256 timestamp);
