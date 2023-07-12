@@ -498,6 +498,12 @@ contract XenGame {
 function withdrawReferralRewards() public {
     uint256 rewardAmount = players[msg.sender].referralRewards;
     require(rewardAmount > 0, "No referral rewards to withdraw");
+    // Check that the player has a registered name
+    string memory playerName = getPlayerName(msg.sender);
+    require(bytes(playerName).length > 0, "Player has no registered names");
+
+
+
     address payable senderPayable = payable(msg.sender);  // Explicit casting
 
 
