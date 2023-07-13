@@ -559,7 +559,7 @@ function withdrawReferralRewards() public {
     function getPendingRewards(address playerAddress, uint256 roundNumber) public view returns (uint256) {
         Player storage player = players[playerAddress];
         uint256 pendingRewards = (
-            player.keyCount[currentRound] * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])
+            player.keyCount[roundNumber] * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])
         ) / PRECISION;
 
         // Add the keyRewards to the pending rewards
