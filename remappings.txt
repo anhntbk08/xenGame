@@ -2,4 +2,4 @@
 @uniswap/v2-periphery=node_modules/@uniswap/v2-periphery
 @uniswap/v2-core=node_modules/@uniswap/v2-core
 @uniswap/v3-core=node_modules/@uniswap/v3-core
-
+@uniswap/v3-periphery=node_modules/@uniswap/v3-periphery

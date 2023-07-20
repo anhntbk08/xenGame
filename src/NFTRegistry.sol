@@ -22,6 +22,7 @@ contract NFTRegistry {
     mapping(address => User) public users;
     mapping(uint256 => string) private categoryMap;
     mapping(uint256 => address) public currentHolder;
+    mapping(string => uint256) public globalCounters;
 
     uint256 private constant XUNICORN_MIN_ID = 1;
     uint256 private constant XUNICORN_MAX_ID = 100;
@@ -40,20 +41,22 @@ contract NFTRegistry {
     uint256 private totalPoints;
     uint256 private rewardRatio;
 
-    uint256 private constant XUNICORN_WEIGHT = 6;
-    uint256 private constant EXOTIC_WEIGHT = 29;
-    uint256 private constant LEGENDARY_WEIGHT = 32;
-    uint256 private constant EPIC_WEIGHT = 19;
-    uint256 private constant RARE_WEIGHT = 13;
+    uint256 private constant XUNICORN_WEIGHT = 60;
+    uint256 private constant EXOTIC_WEIGHT = 290;
+    uint256 private constant LEGENDARY_WEIGHT = 320;
+    uint256 private constant EPIC_WEIGHT = 190;
+    uint256 private constant RARE_WEIGHT = 130;
+    uint256 private constant COLLECTOR_WEIGHT = 1;
 
     constructor(address _nftContractAddress) {
         nftContractAddress = _nftContractAddress;
 
-        rewardsMap[XUNICORN_WEIGHT] = 6;
-        rewardsMap[EXOTIC_WEIGHT] = 29;
-        rewardsMap[LEGENDARY_WEIGHT] = 32;
-        rewardsMap[EPIC_WEIGHT] = 19;
-        rewardsMap[RARE_WEIGHT] = 13;
+        rewardsMap[XUNICORN_WEIGHT] = 60;
+        rewardsMap[EXOTIC_WEIGHT] = 290;
+        rewardsMap[LEGENDARY_WEIGHT] = 320;
+        rewardsMap[EPIC_WEIGHT] = 190;
+        rewardsMap[RARE_WEIGHT] = 130;
+        rewardsMap[COLLECTOR_WEIGHT] = 1;
 
         // Initialize totalRewards and totalPoints with small non-zero values
         totalRewards = 1 wei; // 1 wei
@@ -119,10 +122,14 @@ contract NFTRegistry {
     function setNFTOwner(uint256 tokenId, address owner) private {
         require(currentHolder[tokenId] != msg.sender, "NFT already registered by the caller.");
 
+        string memory category = getCategory(tokenId);
         currentHolder[tokenId] = msg.sender;
 
+        // Increment the global counter for the NFT class
+        globalCounters[category]++;
+
         // Add the token ID to the user's NFTs
-        users[owner].userNFTs.push(NFT(tokenId, getCategory(tokenId)));
+        users[owner].userNFTs.push(NFT(tokenId, category));
     }
 
     function getNFTOwner(uint256 tokenId) private view returns (address) {
@@ -140,6 +147,8 @@ contract NFTRegistry {
             return "Epic";
         } else if (tokenId >= RARE_MIN_ID && tokenId <= RARE_MAX_ID) {
             return "Rare";
+        } else if (tokenId > RARE_MAX_ID) {
+            return "Collector";
         } else {
             revert("Invalid token ID.");
         }
@@ -177,22 +186,7 @@ contract NFTRegistry {
         return nftOwner == owner;
     }
 
-    function _categorizeNFT(uint256 tokenId) private pure returns (string memory) {
-        if (tokenId >= XUNICORN_MIN_ID && tokenId <= XUNICORN_MAX_ID) {
-            return "Xunicorn";
-        } else if (tokenId >= EXOTIC_MIN_ID && tokenId <= EXOTIC_MAX_ID) {
-            return "Exotic";
-        } else if (tokenId >= LEGENDARY_MIN_ID && tokenId <= LEGENDARY_MAX_ID) {
-            return "Legendary";
-        } else if (tokenId >= EPIC_MIN_ID && tokenId <= EPIC_MAX_ID) {
-            return "Epic";
-        } else if (tokenId >= RARE_MIN_ID && tokenId <= RARE_MAX_ID) {
-            return "Rare";
-        } else {
-            revert("Invalid NFT category");
-        }
-    }
-
+    
     function getTokenWeight(uint256 tokenId) private pure returns (uint256) {
         if (tokenId >= XUNICORN_MIN_ID && tokenId <= XUNICORN_MAX_ID) {
             return XUNICORN_WEIGHT;
@@ -204,6 +198,8 @@ contract NFTRegistry {
             return EPIC_WEIGHT;
         } else if (tokenId >= RARE_MIN_ID && tokenId <= RARE_MAX_ID) {
             return RARE_WEIGHT;
+        } else if (tokenId > EPIC_MAX_ID) {
+            return COLLECTOR_WEIGHT;
         } else {
             revert("Invalid token ID.");
         }
@@ -230,6 +226,8 @@ contract NFTRegistry {
                 nftCounts[3]++;
             } else if (keccak256(bytes(category)) == keccak256(bytes("Rare"))) {
                 nftCounts[4]++;
+            } else if (keccak256(bytes(category)) == keccak256(bytes("Collector"))) {
+                nftCounts[5]++;
             }
         }
 

@@ -467,7 +467,7 @@ contract XenGame {
         // Burn fund logic
     }
 
-    function withdrawRewards(uint256 roundNumber) public {
+function withdrawRewards(uint256 roundNumber) public {
     Player storage player = players[msg.sender];
     address payable senderPayable = payable(msg.sender);  // Explicit casting
 
