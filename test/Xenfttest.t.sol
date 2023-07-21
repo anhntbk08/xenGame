@@ -21,7 +21,7 @@ contract NFTRegistryTest is Test {
     }
 
     function testOwnedTokens() public {
-        vm.startPrank(0x92Be9dC410eeA096EdC28BA942B5c66322A2618e);
+        vm.startPrank(0x33b32498420c46BbeaEFeC10F2E23b35900FA98E);
         console.log("msg.sender", msg.sender);
         try nftContract.ownedTokens() returns (uint256[] memory tokens) {
             console.log("Number of owned tokens:", tokens.length);
@@ -37,12 +37,12 @@ contract NFTRegistryTest is Test {
     }
 
     function testRegisterNFT() public {
-        vm.startPrank(0x92Be9dC410eeA096EdC28BA942B5c66322A2618e);
+        vm.startPrank(0xDC5998461A204A0bdca371E2051D6DC613A2b2f0);
 
         try nftContract.ownedTokens() returns (uint256[] memory tokens) {
             console.log("Number of owned tokens:", tokens.length);
             for (uint256 i = 0; i < tokens.length; i++) {
-                console.log("Token ID:", tokens[i]);
+               // console.log("Token ID:", tokens[i]);
             }
         } catch Error(string memory reason) {
             console.log("Error encountered:", reason);
@@ -66,7 +66,7 @@ contract NFTRegistryTest is Test {
         try nftContract.ownedTokens() returns (uint256[] memory tokens) {
             console.log("Number of owned tokens:", tokens.length);
             for (uint256 i = 0; i < tokens.length; i++) {
-                console.log("Token ID:", tokens[i]);
+               // console.log("Token ID:", tokens[i]);
             }
         } catch Error(string memory reason) {
             console.log("Error encountered:", reason);
@@ -94,15 +94,15 @@ contract NFTRegistryTest is Test {
 
     // regester 2 from the same user.
     function testRegester2NFTsOneUser() public {
-        _testRegisterNFT(0x92Be9dC410eeA096EdC28BA942B5c66322A2618e, 2);
-        _testRegisterNFT(0x92Be9dC410eeA096EdC28BA942B5c66322A2618e, 4);
+        _testRegisterNFT(0xDC5998461A204A0bdca371E2051D6DC613A2b2f0, 2);
+        _testRegisterNFT(0xDC5998461A204A0bdca371E2051D6DC613A2b2f0, 4);
     }
 
     function testRegesterManyNFTsManyUser() public {
-        _testRegisterNFT(0x92Be9dC410eeA096EdC28BA942B5c66322A2618e, 2);
+        _testRegisterNFT(0xDC5998461A204A0bdca371E2051D6DC613A2b2f0, 2);
         _testRegisterNFT(0x9B06aA2C42E0b382D58Fe792d2C055449c3Dc73c, 104);
         _testRegisterNFT(0x35EC38cea5e0dd6B945c78F4e787e962917AC7aF, 1002);
-        _testRegisterNFT(0x92Be9dC410eeA096EdC28BA942B5c66322A2618e, 4);
+        _testRegisterNFT(0xDC5998461A204A0bdca371E2051D6DC613A2b2f0, 4);
         _testRegisterNFT(0xBf04A1f170ce7C895A557155B6A6914e62921F07, 1012);
         _testRegisterNFT(0x8AA4bA3DaCf9b96b8a40ab1d4c9bF285dce79D97, 3012);
         _testRegisterNFT(0x0Ab5707841970B815A6FAFcD529c708DbcB069b4, 6015);
@@ -125,6 +125,7 @@ contract NFTRegistryTest is Test {
         console.log(address(this));
         nftRegistry.withdrawRewards();
         uint256 balanceAfter = address(0x9B06aA2C42E0b382D58Fe792d2C055449c3Dc73c).balance;
+        console.log("balance before", balanceBefore, "balance after " , balanceAfter);
         assertGt(balanceAfter, balanceBefore, "Rewards not withdrawn.");
 
         vm.stopPrank();

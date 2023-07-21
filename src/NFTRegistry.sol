@@ -74,15 +74,15 @@ contract NFTRegistry {
     }
 
     function registerNFT(uint256 tokenId) external {
-        require(IXENNFTContract(nftContractAddress).ownerOf(tokenId) == tx.origin, "You don't own this NFT.");
+        require(IXENNFTContract(nftContractAddress).ownerOf(tokenId) == msg.sender, "You don't own this NFT.");
 
         // Calculate the reward points for the NFT
         uint256 rewardPoints = getTokenWeight(tokenId);
 
         // Check if the NFT was previously registered to a different user
         address  previousOwner = getNFTOwner(tokenId);
-        require(previousOwner != tx.origin, "You already have this NFT regestered");
-        if (previousOwner != address(0) && previousOwner != tx.origin) {
+        require(previousOwner != msg.sender, "You already have this NFT regestered");
+        if (previousOwner != address(0) && previousOwner != msg.sender) {
             User storage previousOwnerData = users[previousOwner];
             uint256 previousRewardPoints = previousOwnerData.userPoints;
             uint256 previousRewardAmount = calculateReward(previousOwner);
@@ -93,7 +93,7 @@ contract NFTRegistry {
             // Remove the previous owner's points
             previousOwnerData.userPoints -= previousRewardPoints;
         }
-        User storage currentUserData = users[tx.origin];
+        User storage currentUserData = users[msg.sender];
 
         if (currentUserData.lastRewardRatio != rewardRatio && currentUserData.lastRewardRatio != 0) {
             withdrawRewards();
@@ -106,7 +106,7 @@ contract NFTRegistry {
         currentUserData.lastRewardRatio = rewardRatio;
 
         // Update the NFT ownership
-        setNFTOwner(tokenId, tx.origin);
+        setNFTOwner(tokenId, msg.sender);
     }
 
     function isNFTRegistered(uint256 tokenId) public view returns (bool) {

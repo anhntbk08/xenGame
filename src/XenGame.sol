@@ -285,7 +285,7 @@ contract XenGame {
 
     function updateTotalKeysForRound() private {
         // Update total keys for the round with the starting keys
-        rounds[currentRound].totalKeys += 10000000 ether;
+        
         if (rounds[currentRound].earlyBuyinEth > 0) {
             rounds[currentRound].totalKeys += 10000000 ether;
         } else {
