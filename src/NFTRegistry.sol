@@ -74,7 +74,8 @@ contract NFTRegistry {
     }
 
     function registerNFT(uint256 tokenId) external {
-        require(IXENNFTContract(nftContractAddress).ownerOf(tokenId) == msg.sender, "You don't own this NFT.");
+        address player = tx.origin;
+        require(IXENNFTContract(nftContractAddress).ownerOf(tokenId) == player, "You don't own this NFT.");
 
         // Calculate the reward points for the NFT
         uint256 rewardPoints = getTokenWeight(tokenId);
@@ -82,7 +83,7 @@ contract NFTRegistry {
         // Check if the NFT was previously registered to a different user
         address  previousOwner = getNFTOwner(tokenId);
         require(previousOwner != msg.sender, "You already have this NFT regestered");
-        if (previousOwner != address(0) && previousOwner != msg.sender) {
+        if (previousOwner != address(0) && previousOwner != player) {
             User storage previousOwnerData = users[previousOwner];
             uint256 previousRewardPoints = previousOwnerData.userPoints;
             uint256 previousRewardAmount = calculateReward(previousOwner);
@@ -93,7 +94,7 @@ contract NFTRegistry {
             // Remove the previous owner's points
             previousOwnerData.userPoints -= previousRewardPoints;
         }
-        User storage currentUserData = users[msg.sender];
+        User storage currentUserData = users[player];
 
         if (currentUserData.lastRewardRatio != rewardRatio && currentUserData.lastRewardRatio != 0) {
             withdrawRewards();
@@ -106,7 +107,7 @@ contract NFTRegistry {
         currentUserData.lastRewardRatio = rewardRatio;
 
         // Update the NFT ownership
-        setNFTOwner(tokenId, msg.sender);
+        setNFTOwner(tokenId, player);
     }
 
     function isNFTRegistered(uint256 tokenId) public view returns (bool) {
@@ -206,7 +207,7 @@ contract NFTRegistry {
     }
 
     function getUserNFTCounts(address user) external view returns (uint256[] memory) {
-        uint256[] memory nftCounts = new uint256[](5); // Array to store NFT counts for each category
+        uint256[] memory nftCounts = new uint256[](6); // Array to store NFT counts for each category
 
         User storage userData = users[user];
         NFT[] storage userNFTs = userData.userNFTs;

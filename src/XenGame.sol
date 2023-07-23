@@ -130,6 +130,12 @@ contract XenGame {
         require(isRoundActive() || isRoundEnded(), "Cannot purchase keys during the round gap");
 
         if (isRoundEnded()) {
+
+            if (rounds[currentRound].totalKeys == 0) {
+                adjustRoundEndTime(100);
+                return;
+            }
+
             endRound();
             startNewRound();
             players[msg.sender].keyRewards += _amount;
@@ -178,6 +184,12 @@ contract XenGame {
         require(isRoundActive() || isRoundEnded(), "Cannot purchase keys during the round gap");
 
         if (isRoundEnded()) {
+
+            if (rounds[currentRound].totalKeys == 0) {
+                adjustRoundEndTime(100);
+                return;
+            }
+
             endRound();
             startNewRound();
             players[msg.sender].keyRewards += _amount;
@@ -384,8 +396,8 @@ contract XenGame {
 
     function adjustRoundEndTime(uint256 maxKeysToPurchase) private {
         //----------------------------------------------------------
-        uint256 timeExtension = maxKeysToPurchase * 30 seconds;
-        uint256 maxEndTime = block.timestamp + 12 hours;
+        uint256 timeExtension = maxKeysToPurchase * 3 seconds;
+        uint256 maxEndTime = block.timestamp + 2 hours;
         rounds[currentRound].end = min(rounds[currentRound].end + timeExtension, maxEndTime);
     }
 
