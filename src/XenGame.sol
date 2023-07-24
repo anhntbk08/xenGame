@@ -53,7 +53,7 @@ contract XenGame {
     }
 
     struct Round {
-        uint256 totalKeys;
+        uint256 totalKeys ;
         uint256 totalFunds;
         uint256 start;
         uint256 end;
@@ -131,11 +131,7 @@ contract XenGame {
 
         if (isRoundEnded()) {
 
-            if (rounds[currentRound].totalKeys == 0) {
-                adjustRoundEndTime(100);
-                return;
-            }
-
+            
             endRound();
             startNewRound();
             players[msg.sender].keyRewards += _amount;
@@ -185,11 +181,7 @@ contract XenGame {
 
         if (isRoundEnded()) {
 
-            if (rounds[currentRound].totalKeys == 0) {
-                adjustRoundEndTime(100);
-                return;
-            }
-
+            
             endRound();
             startNewRound();
             players[msg.sender].keyRewards += _amount;
@@ -565,6 +557,7 @@ function withdrawReferralRewards() public {
         rounds[currentRound].start = block.timestamp + ROUND_GAP; // Add ROUND_GAP to the start time
         rounds[currentRound].end = rounds[currentRound].start + 2 hours; // Set end time to start time + round duration  **************chnaged starting time for testing
         rounds[currentRound].ended = false;
+        rounds[currentRound].totalKeys = 1;
         emit NewRoundStarted(currentRound, rounds[currentRound].start, rounds[currentRound].end);
     }
 
