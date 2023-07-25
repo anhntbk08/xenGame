@@ -32,7 +32,7 @@ contract XenGame {
     uint256 constant KEY_PRICE_INCREMENT_PERCENTAGE = 10; // 0.099% or approx 10 basis points
     uint256 constant REFERRAL_REWARD_PERCENTAGE = 1000; // 10% or 1000 basis points
     uint256 constant NFT_POOL_PERCENTAGE = 500; // 5% or 500 basis points
-    uint256 constant ROUND_GAP = 1 hours; // *********************************************************updated to 1 hour for testing
+    uint256 constant ROUND_GAP = 600;//1 hours; // *********************************************************updated to 1 hour for testing
     uint256 constant EARLY_BUYIN_DURATION = 300; // *********************************************************** updated to 5 min  for testing
 
     uint256 constant KEYS_FUND_PERCENTAGE = 5000; // 50% or 5000 basis points
@@ -131,7 +131,12 @@ contract XenGame {
 
         if (isRoundEnded()) {
 
-            
+            if (rounds[currentRound].totalKeys == 0){
+                rounds[currentRound].end = block.timestamp + 600;
+                players[msg.sender].keyRewards += _amount;
+                return;
+            }
+
             endRound();
             startNewRound();
             players[msg.sender].keyRewards += _amount;
@@ -181,6 +186,11 @@ contract XenGame {
 
         if (isRoundEnded()) {
 
+            if (rounds[currentRound].totalKeys == 0){
+                rounds[currentRound].end = block.timestamp + 600;
+                players[msg.sender].keyRewards += _amount;
+                return;
+            }
             
             endRound();
             startNewRound();
@@ -555,9 +565,9 @@ function withdrawReferralRewards() public {
     function startNewRound() private {
         currentRound += 1;
         rounds[currentRound].start = block.timestamp + ROUND_GAP; // Add ROUND_GAP to the start time
-        rounds[currentRound].end = rounds[currentRound].start + 2 hours; // Set end time to start time + round duration  **************chnaged starting time for testing
+        rounds[currentRound].end = rounds[currentRound].start + 1 hours; // Set end time to start time + round duration  **************chnaged starting time for testing
         rounds[currentRound].ended = false;
-        rounds[currentRound].totalKeys = 1;
+       // rounds[currentRound].totalKeys = 1;
         emit NewRoundStarted(currentRound, rounds[currentRound].start, rounds[currentRound].end);
     }
 
