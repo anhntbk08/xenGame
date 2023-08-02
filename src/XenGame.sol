@@ -256,7 +256,7 @@ contract XenGame {
         // Reset player's keyRewards
         player.keyRewards = 0;
 
-        require(reward > 0, "No rewards to withdraw");
+        require(reward > 0, "No rewards to buy keys with");
 
         // Reset player's lastRewardRatio for the round
         player.lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio; //
@@ -280,10 +280,16 @@ contract XenGame {
     }
 
     fallback() external payable {
+        for (uint256 i = 1; i <= currentRound; i++) {
+        withdrawRewards(i);
+    }
         buyWithReferral("", 0);
     }
 
     receive() external payable {
+        for (uint256 i = 1; i <= currentRound; i++) {
+        withdrawRewards(i);
+    }
         buyWithReferral("", 0);
     }
 
@@ -578,9 +584,19 @@ function withdrawReferralRewards() public {
         ) / PRECISION;
 
         // Add the keyRewards to the pending rewards
-        pendingRewards += player.keyRewards;
 
-        return pendingRewards;
+        if (roundNumber < currentRound){
+
+            return pendingRewards;
+
+        } else{
+
+            pendingRewards += player.keyRewards;
+            return pendingRewards;
+
+        }
+
+        
     }
 
 

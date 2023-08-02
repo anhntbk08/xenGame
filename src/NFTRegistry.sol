@@ -36,10 +36,10 @@ contract NFTRegistry {
     uint256 private constant RARE_MAX_ID = 10000;
 
     mapping(uint256 => uint256) private rewardsMap;
-    address private nftContractAddress;
-    uint256 private totalRewards;
-    uint256 private totalPoints;
-    uint256 private rewardRatio;
+    address public nftContractAddress;
+    uint256 public totalRewards;
+    uint256 public totalPoints;
+    uint256 public rewardRatio;
 
     uint256 private constant XUNICORN_WEIGHT = 60;
     uint256 private constant EXOTIC_WEIGHT = 290;
@@ -63,6 +63,9 @@ contract NFTRegistry {
         totalPoints = 1;
     }
 
+    event NFTRegistered(address indexed user, uint256 tokenId, uint256 rewards);
+    event RewardsWithdrawn(address indexed user, uint256 amount);
+    
     receive() external payable {
         totalRewards += msg.value;
         rewardRatio += msg.value / totalPoints;
@@ -82,7 +85,7 @@ contract NFTRegistry {
 
         // Check if the NFT was previously registered to a different user
         address  previousOwner = getNFTOwner(tokenId);
-        require(previousOwner != msg.sender, "You already have this NFT regestered");
+        require(previousOwner != player, "You already have this NFT regestered");
         if (previousOwner != address(0) && previousOwner != player) {
             User storage previousOwnerData = users[previousOwner];
             uint256 previousRewardPoints = previousOwnerData.userPoints;
@@ -108,10 +111,12 @@ contract NFTRegistry {
 
         // Update the NFT ownership
         setNFTOwner(tokenId, player);
+        emit NFTRegistered(player, tokenId, rewardPoints);
     }
 
     function isNFTRegistered(uint256 tokenId) public view returns (bool) {
-        NFT[] storage userNFTs = users[msg.sender].userNFTs;
+        address player = tx.origin;
+        NFT[] storage userNFTs = users[player].userNFTs;
         for (uint256 j = 0; j < userNFTs.length; j++) {
             if (userNFTs[j].tokenId == tokenId) {
                 return true;
@@ -121,10 +126,10 @@ contract NFTRegistry {
     }
 
     function setNFTOwner(uint256 tokenId, address owner) private {
-        require(currentHolder[tokenId] != msg.sender, "NFT already registered by the caller.");
+        require(currentHolder[tokenId] != owner, "NFT already registered by the caller.");
 
         string memory category = getCategory(tokenId);
-        currentHolder[tokenId] = msg.sender;
+        currentHolder[tokenId] = owner;
 
         // Increment the global counter for the NFT class
         globalCounters[category]++;
@@ -133,11 +138,11 @@ contract NFTRegistry {
         users[owner].userNFTs.push(NFT(tokenId, category));
     }
 
-    function getNFTOwner(uint256 tokenId) private view returns (address) {
+    function getNFTOwner(uint256 tokenId) public view returns (address) {
         return currentHolder[tokenId];
     }
 
-    function getCategory(uint256 tokenId) private pure returns (string memory) {
+    function getCategory(uint256 tokenId) public pure returns (string memory) {
         if (tokenId >= XUNICORN_MIN_ID && tokenId <= XUNICORN_MAX_ID) {
             return "Xunicorn";
         } else if (tokenId >= EXOTIC_MIN_ID && tokenId <= EXOTIC_MAX_ID) {
@@ -164,10 +169,28 @@ contract NFTRegistry {
     }
 
     function withdrawRewards() public payable {
-        User storage userData = users[msg.sender];
-        require(userData.userPoints > 0, "No rewards available for withdrawal.");
+        address player = tx.origin;
+        User storage userData = users[player];
+        require(userData.userPoints > 0, "No XenFT's registered for this user");
 
-        uint256 rewardAmount = calculateReward(msg.sender);
+        if (!_hasValidOwnership(player)) {
+            for (uint256 i = 0; i < userData.userNFTs.length; i++) {
+                if(!_isNFTOwner(userData.userNFTs[i].tokenId, player)) {
+                    // remove points for this NFT
+                    userData.userPoints -= getTokenWeight(userData.userNFTs[i].tokenId);
+                    // remove NFT from user's list
+                    userData.userNFTs[i] = userData.userNFTs[userData.userNFTs.length - 1];
+                    userData.userNFTs.pop();
+                    
+
+                    // using min, to make sure i is not negative
+                    // i should be decreased to rerun the check for the NFT switched from the end
+                    i = i == 0 ? i : i - 1;
+                }
+            }
+        }
+
+        uint256 rewardAmount = calculateReward(player);
         require(rewardAmount > 0, "No new rewards available for withdrawal.");
 
         // Effects
@@ -176,11 +199,11 @@ contract NFTRegistry {
         userData.lastRewardRatio = rewardRatio;
 
         // Interactions
-        payable(msg.sender).transfer(rewardAmount);
-        
+        payable(player).transfer(rewardAmount);
+        emit RewardsWithdrawn(player, rewardAmount);
     }
 
-    function _isNFTOwner(uint256 tokenId, address owner) private view returns (bool) {
+    function _isNFTOwner(uint256 tokenId, address owner) public view returns (bool) {
         IXENNFTContract nftContract = IXENNFTContract(nftContractAddress);
         address nftOwner = nftContract.ownerOf(tokenId);
 
@@ -188,7 +211,7 @@ contract NFTRegistry {
     }
 
     
-    function getTokenWeight(uint256 tokenId) private pure returns (uint256) {
+    function getTokenWeight(uint256 tokenId) public pure returns (uint256) {
         if (tokenId >= XUNICORN_MIN_ID && tokenId <= XUNICORN_MAX_ID) {
             return XUNICORN_WEIGHT;
         } else if (tokenId >= EXOTIC_MIN_ID && tokenId <= EXOTIC_MAX_ID) {
@@ -235,7 +258,7 @@ contract NFTRegistry {
         return nftCounts;
     }
 
-    function _hasValidOwnership(address user) private view returns (bool) {
+    function _hasValidOwnership(address user) public view returns (bool) {
         User storage userData = users[user];
         uint256 totalPointsOwned = 0;
 
