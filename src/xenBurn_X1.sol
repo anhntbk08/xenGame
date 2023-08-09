@@ -25,6 +25,7 @@ contract xenBurn is IBurnRedeemable {
     mapping(address => uint256) private lastCall;
     mapping(address => uint256) private callCount;
     uint256 public totalCount;
+    uint256 public totalBurned;
     address private uniswapPool = 0xC0d776E2223c9a2ad13433DAb7eC08cB9C5E76ae;
     IPriceOracle private priceOracle;
     IPlayerNameRegistryBurn private playerNameRegistry;
@@ -35,7 +36,7 @@ contract xenBurn is IBurnRedeemable {
         playerNameRegistry = IPlayerNameRegistryBurn(_playerNameRegistry);
     }
 
-    event TokenBurned(address indexed user, uint256 amount, string playerName);
+    event TokenBurned(address indexed user, uint256 amount, string playerName, uint256 timestamp);
 
     // Modifier to allow only human users to perform certain actions
     modifier isHuman() {
@@ -69,7 +70,7 @@ contract xenBurn is IBurnRedeemable {
         callCount[msg.sender] = totalCount;
         lastCall[msg.sender] = block.timestamp;
 
-        emit TokenBurned(msg.sender, amountETH, names[0]);
+        emit TokenBurned(msg.sender, amountETH, names[0], block.timestamp);
     }
 
     // Function to calculate the expected amount of tokens to be burned based on the contract's ETH balance and token price
@@ -123,8 +124,10 @@ contract xenBurn is IBurnRedeemable {
 
         string memory playerName = names[0];
 
+        totalBurned += amount;
+
         // Emit the TokenBurned event
-        emit TokenBurned(user, amount, playerName);
+        emit TokenBurned(user, amount, playerName, block.timestamp);
     }
 
     // Function to check if a user's burn operation was successful

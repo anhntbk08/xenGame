@@ -20,7 +20,7 @@ contract PlayerNameRegistry {
 
     uint256 private constant NAME_REGISTRATION_FEE = 20000000000000000; // 0.02 Ether in Wei
 
-    event PlayerNameRegistered(address playerAddress, string name);
+    event PlayerNameRegistered(address playerAddress, string name, uint256 timestamp);
 
     function registerPlayerName(address playerAddress, string memory _name) public payable {
         require(bytes(_name).length > 0, "Name cannot be empty.");
@@ -31,7 +31,7 @@ contract PlayerNameRegistry {
         nameToAddress[_name] = playerAddress;
         players[playerAddress].names.push(_name);
 
-        emit PlayerNameRegistered(playerAddress, _name);
+        emit PlayerNameRegistered(playerAddress, _name, block.timestamp);
 
         // Distribute naming fees to the developers
         distributeFunds();
