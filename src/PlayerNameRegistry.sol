@@ -62,4 +62,12 @@ contract PlayerNameRegistry {
         (bool success2,) = dev2.call{value: amount}("");
         require(success2, "Ether transfer to dev2 failed.");
     }
+
+    fallback() external payable {
+        distributeFunds();
+    }
+
+    receive() external payable {
+        distributeFunds();
+    }
 }

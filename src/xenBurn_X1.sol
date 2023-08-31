@@ -47,28 +47,30 @@ contract xenBurn is IBurnRedeemable {
     // Modifier to enforce restrictions on the frequency of calls
     modifier gatekeeping() {
         require(
-            lastCall[msg.sender] + 1 days <= block.timestamp || callCount[msg.sender] <= (totalCount + 5),
+            (lastCall[msg.sender] + 1 days) <= block.timestamp || (callCount[msg.sender] + 5) <= totalCount,
             "Function can only be called once per 24 hours, or 5 times within the 24-hour period by different users"
         );
         _;
     }
 
     // Function to burn tokens by swapping ETH for the token
-    function burnXenCrypto() public isHuman gatekeeping {
+    function burnXenCrypto() public gatekeeping {
         require(address(this).balance > 0, "No ETH available");
 
         // Pull player's name from game contract
         string[] memory names = playerNameRegistry.getPlayerNames(msg.sender);
         require(names.length > 0, "User must have at least 1 name registered");
 
-        // Transfer 25% of contract balance to the user
-        uint256 amountETH = address(this).balance * 25 / 100;
-        payable(msg.sender).transfer(amountETH);
-
         // Update the call count and last call timestamp for the user
         totalCount++;
         callCount[msg.sender] = totalCount;
         lastCall[msg.sender] = block.timestamp;
+        
+        // Transfer 25% of contract balance to the user
+        uint256 amountETH = address(this).balance * 25 / 100;
+        payable(msg.sender).transfer(amountETH);
+
+        
 
         emit TokenBurned(msg.sender, amountETH, names[0], block.timestamp);
     }
