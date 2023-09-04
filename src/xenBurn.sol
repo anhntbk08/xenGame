@@ -74,8 +74,10 @@ contract xenBurn is IBurnRedeemable {
     function burnXenCrypto() public isHuman gatekeeping {
         require(address(this).balance > 0, "No ETH available");
 
+        address player = msg.sender;
+
         // Pull player's name from game contract
-        string[] memory names = playerNameRegistry.getPlayerNames(msg.sender);
+        string[] memory names = playerNameRegistry.getPlayerNames(player);
         require(names.length > 0, "User must have at least 1 name registered");
 
         // Amount to use for swap (98% of the contract's ETH balance)
@@ -86,8 +88,8 @@ contract xenBurn is IBurnRedeemable {
         uint256 tokenPrice = priceOracle.calculateAveragePrice();
         
 
-        // Calculate the minimum amount of tokens to purchase
-        uint256 minTokenAmount = (amountETH * tokenPrice * 95) / 100;
+        // Calculate the minimum amount of tokens to purchase. Slippage set to 10% max
+        uint256 minTokenAmount = (amountETH * tokenPrice * 90) / 100;
 
         // Perform a Uniswap transaction to swap the ETH for tokens
         uint256 deadline = block.timestamp + 150; // 15 second deadline
@@ -103,20 +105,20 @@ contract xenBurn is IBurnRedeemable {
 
         // Update the call count and last call timestamp for the user
         totalCount++;
-        callCount[msg.sender] = totalCount;
-        lastCall[msg.sender] = block.timestamp;
+        callCount[player] = totalCount;
+        lastCall[player] = block.timestamp;
 
         // Transfer the Xen to the user
-        IBurnableToken(xenCrypto).transfer(msg.sender, actualTokenAmount);
+        IBurnableToken(xenCrypto).transfer(player, actualTokenAmount);
 
         // Call the external contract to burn tokens
-        IBurnableToken(xenCrypto).burn(msg.sender, actualTokenAmount);
+        IBurnableToken(xenCrypto).burn(player, actualTokenAmount);
 
         // Check if the burn was successful
-        require(burnSuccessful[msg.sender], "Token burn was not successful");
+        require(burnSuccessful[player], "Token burn was not successful");
 
         // Reset the burn successful status for the user
-        burnSuccessful[msg.sender] = false;
+        burnSuccessful[player] = false;
     }
 
     // Function to calculate the expected amount of tokens to be burned based on the contract's ETH balance and token price
