@@ -57,7 +57,7 @@ contract xenBurn is IBurnRedeemable {
 
     // Modifier to allow only human users to perform certain actions
     modifier isHuman() {
-        // require(msg.sender == tx.origin, "Only human users can perform this action");
+        require(msg.sender == tx.origin, "Only human users can perform this action");
         _;
     }
 
