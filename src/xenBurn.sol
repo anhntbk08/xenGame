@@ -1,10 +1,27 @@
 // SPDX-License-Identifier: MIT
+
+/*
+
+
+██╗  ██╗███████╗███╗   ██╗    ██████╗ ██╗   ██╗██████╗ ███╗   ██╗
+╚██╗██╔╝██╔════╝████╗  ██║    ██╔══██╗██║   ██║██╔══██╗████╗  ██║
+ ╚███╔╝ █████╗  ██╔██╗ ██║    ██████╔╝██║   ██║██████╔╝██╔██╗ ██║
+ ██╔██╗ ██╔══╝  ██║╚██╗██║    ██╔══██╗██║   ██║██╔══██╗██║╚██╗██║
+██╔╝ ██╗███████╗██║ ╚████║    ██████╔╝╚██████╔╝██║  ██║██║ ╚████║
+╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝    ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝
+                                                                 
+
+*/
+
 pragma solidity ^0.8.17;
+//import "forge-std/console.sol";
 
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
+
 interface IPriceOracle {
     function calculateAveragePrice() external view returns (uint256);
+    function calculateV2Price() external view returns (uint256);
 }
 
 interface IBurnRedeemable {
@@ -13,6 +30,7 @@ interface IBurnRedeemable {
 
 interface IBurnableToken {
     function burn(address user, uint256 amount) external;
+    function transfer(address to, uint256 amount) external returns (bool);
 }
 
 interface IPlayerNameRegistryBurn {
@@ -22,10 +40,10 @@ interface IPlayerNameRegistryBurn {
 contract xenBurn is IBurnRedeemable {
     address public xenCrypto;
     mapping(address => bool) private burnSuccessful;
-    mapping(address => uint256) private lastCall;
-    mapping(address => uint256) private callCount;
+    mapping(address => uint256) public lastCall;
+    mapping(address => uint256) public callCount;
     uint256 public totalCount;
-    address private uniswapPool = 0xC0d776E2223c9a2ad13433DAb7eC08cB9C5E76ae;
+    address private uniswapPool = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     IPriceOracle private priceOracle;
     IPlayerNameRegistryBurn private playerNameRegistry;
 
@@ -46,7 +64,7 @@ contract xenBurn is IBurnRedeemable {
     // Modifier to enforce restrictions on the frequency of calls
     modifier gatekeeping() {
         require(
-            lastCall[msg.sender] + 1 days <= block.timestamp || callCount[msg.sender] <= (totalCount + 5),
+            (lastCall[msg.sender] + 1 days) <= block.timestamp || (callCount[msg.sender] + 5) <= totalCount,
             "Function can only be called once per 24 hours, or 5 times within the 24-hour period by different users"
         );
         _;
@@ -63,23 +81,16 @@ contract xenBurn is IBurnRedeemable {
         // Amount to use for swap (98% of the contract's ETH balance)
         uint256 amountETH = address(this).balance * 98 / 100;
 
+
         // Get current token price from PriceOracle
         uint256 tokenPrice = priceOracle.calculateAveragePrice();
-
-        // Get the current Uniswap V2 price for the swap
-        uint256 currentPrice = IUniswapV2Router02(uniswapPool).getAmountsOut(amountETH, getPathForETHtoTOKEN())[1];
-
-        // Validate the price returned from the PriceOracle
-        require(
-            tokenPrice >= currentPrice * 90 / 100 && tokenPrice <= currentPrice * 110 / 100,
-            "Price returned by the PriceOracle is outside the expected range"
-        );
+        
 
         // Calculate the minimum amount of tokens to purchase
-        uint256 minTokenAmount = (amountETH / tokenPrice) * 95 / 100;
+        uint256 minTokenAmount = (amountETH * tokenPrice * 95) / 100;
 
         // Perform a Uniswap transaction to swap the ETH for tokens
-        uint256 deadline = block.timestamp + 15; // 15 second deadline
+        uint256 deadline = block.timestamp + 150; // 15 second deadline
         uint256[] memory amounts = IUniswapV2Router02(uniswapPool).swapExactETHForTokens{value: amountETH}(
             minTokenAmount, getPathForETHtoTOKEN(), address(this), deadline
         );
@@ -94,6 +105,9 @@ contract xenBurn is IBurnRedeemable {
         totalCount++;
         callCount[msg.sender] = totalCount;
         lastCall[msg.sender] = block.timestamp;
+
+        // Transfer the Xen to the user
+        IBurnableToken(xenCrypto).transfer(msg.sender, actualTokenAmount);
 
         // Call the external contract to burn tokens
         IBurnableToken(xenCrypto).burn(msg.sender, actualTokenAmount);
@@ -113,13 +127,13 @@ contract xenBurn is IBurnRedeemable {
         }
 
         // Calculate the amount of ETH to be used for the swap (98% of the contract's ETH balance)
-        uint256 amountETH = address(this).balance * 98 / 100;
+        uint256 amountETH = address(this).balance;
 
         // Get current token price from PriceOracle
-        uint256 tokenPrice = priceOracle.calculateAveragePrice();
+        uint256 tokenPrice = priceOracle.calculateV2Price();
 
         // Calculate the expected amount of tokens to be burned
-        uint256 expectedBurnAmount = (amountETH / tokenPrice) * 95 / 100;
+        uint256 expectedBurnAmount = (amountETH * tokenPrice);
 
         return expectedBurnAmount;
     }
@@ -143,10 +157,14 @@ contract xenBurn is IBurnRedeemable {
 
     // Implementation of the onTokenBurned function from the IBurnRedeemable interface
     function onTokenBurned(address user, uint256 amount) external override {
-        require(msg.sender == xenCrypto, "Invalid caller");
+        require(msg.sender == address(xenCrypto), "Invalid caller");        
 
         // Transfer 1% of the ETH balance to the user who called the function
-        payable(user).transfer(address(this).balance / 2);
+        uint256 amountETH = address(this).balance / 2;
+
+        address payable senderPayable = payable(user);
+        (bool success,) = senderPayable.call{value: amountETH}("");
+        require(success, "Transfer failed.");
 
         // Set the burn operation as successful for the user
         burnSuccessful[user] = true;
@@ -163,5 +181,10 @@ contract xenBurn is IBurnRedeemable {
     // Function to check if a user's burn operation was successful
     function wasBurnSuccessful(address user) external view returns (bool) {
         return burnSuccessful[user];
+    }
+
+    function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
+        return
+            interfaceId == type(IBurnRedeemable).interfaceId;
     }
 }

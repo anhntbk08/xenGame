@@ -7,8 +7,8 @@ contract PlayerNameRegistry {
         string[] names;
     }
 
-    mapping(string => address) private nameToAddress;
-    mapping(address => Player) private players;
+    mapping(string => address) public nameToAddress;
+    mapping(address => Player) public players;
 
     address payable public dev1;
     address payable public dev2;
@@ -33,7 +33,7 @@ contract PlayerNameRegistry {
 
         emit PlayerNameRegistered(playerAddress, _name, block.timestamp);
 
-        // Distribute naming fees to the developers
+        // Distribute fees to the developers
         distributeFunds();
     }
 
