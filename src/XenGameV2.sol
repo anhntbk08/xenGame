@@ -45,8 +45,8 @@ contract XenGame {
     uint256 constant KEY_PRICE_INCREMENT_PERCENTAGE = 10; // 0.099% or approx 10 basis points
     uint256 constant REFERRAL_REWARD_PERCENTAGE = 1000; // 10% or 1000 basis points
     uint256 constant NFT_POOL_PERCENTAGE = 500; // 5% or 500 basis points
-    uint256 constant ROUND_GAP = 600;//1 hours; // *********************************************************updated to 1 hour for testing
-    uint256 constant EARLY_BUYIN_DURATION = 300; // *********************************************************** updated to 5 min  for testing
+    uint256 constant ROUND_GAP = 24 hours;// 24 hours round gap
+    uint256 constant EARLY_BUYIN_DURATION = 300; // *********************************************************** updated to 5 min  
 
     uint256 constant KEYS_FUND_PERCENTAGE = 5000; // 50% or 5000 basis points
     uint256 constant JACKPOT_PERCENTAGE = 3000; // 30% or 3000 basis points
@@ -106,7 +106,7 @@ contract XenGame {
         playerNameRegistry = IPlayerNameRegistry(_playerNameRegistryAddress);
         playerNames = _playerNameRegistryAddress;
 
-        currentRound += 1;        
+        currentRound = 1;        
         rounds[currentRound].start = _startTime;     
         rounds[currentRound].end = rounds[currentRound].start + 12 hours;         
         rounds[currentRound].ended = false;
@@ -603,10 +603,10 @@ receive() external payable {
     */
     function adjustRoundEndTime(uint256 maxKeysToPurchase) private {
         // Calculate the time extension based on the maximum keys purchased
-        uint256 timeExtension = maxKeysToPurchase * 3 seconds;
+        uint256 timeExtension = maxKeysToPurchase * 30 seconds;
 
         // Set the maximum end time as the current timestamp plus 2 hours
-        uint256 maxEndTime = block.timestamp + 2 hours;
+        uint256 maxEndTime = block.timestamp + 12 hours;
 
         // Adjust the end time of the current round by adding the time extension, capped at the maximum end time
         rounds[currentRound].end = min(rounds[currentRound].end + timeExtension, maxEndTime);
@@ -902,7 +902,7 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
         rounds[currentRound].start = block.timestamp + ROUND_GAP;
         
         // Set the end time of the new round by adding 1 hour to the start time (adjust as needed)
-        rounds[currentRound].end = rounds[currentRound].start + 1 hours; 
+        rounds[currentRound].end = rounds[currentRound].start + 12 hours; 
 
         // Reset the "ended" flag for the new round
         rounds[currentRound].ended = false;
