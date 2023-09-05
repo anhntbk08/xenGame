@@ -917,8 +917,9 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
 
         // Calculate the pending rewards based on the player's key count and the difference in reward ratio
         uint256 pendingRewards = (
-            player.keyCount[roundNumber] * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])
-        ) / PRECISION;
+            (player.keyCount[roundNumber] / 1 ether)
+                * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])
+        );
 
         // Add the unprocessed keyRewards to the pending rewards
 
