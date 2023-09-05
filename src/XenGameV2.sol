@@ -97,14 +97,20 @@ contract XenGame {
         address _nftContractAddress,
         address _nftRegistryAddress,
         address _xenBurnContract,
-        address _playerNameRegistryAddress
+        address _playerNameRegistryAddress,
+        uint256 _startTime
     ) {
         nftContract = IXENnftContract(_nftContractAddress);
         nftRegistry = INFTRegistry(_nftRegistryAddress);
         xenBurn = XENBurn(_xenBurnContract);
         playerNameRegistry = IPlayerNameRegistry(_playerNameRegistryAddress);
         playerNames = _playerNameRegistryAddress;
-        startNewRound(); // add a starting date time
+
+        currentRound += 1;        
+        rounds[currentRound].start = _startTime;     
+        rounds[currentRound].end = rounds[currentRound].start + 12 hours;         
+        rounds[currentRound].ended = false;
+        
     }
 
     /**
