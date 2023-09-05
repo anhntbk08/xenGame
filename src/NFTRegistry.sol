@@ -41,22 +41,22 @@ contract NFTRegistry {
     uint256 public totalPoints;
     uint256 public rewardRatio;
 
-    uint256 private constant XUNICORN_WEIGHT = 60;
-    uint256 private constant EXOTIC_WEIGHT = 290;
-    uint256 private constant LEGENDARY_WEIGHT = 320;
-    uint256 private constant EPIC_WEIGHT = 190;
-    uint256 private constant RARE_WEIGHT = 130;
-    uint256 private constant COLLECTOR_WEIGHT = 1;
+    uint256 private constant XUNICORN_WEIGHT = 50;
+    uint256 private constant EXOTIC_WEIGHT = 50;
+    uint256 private constant LEGENDARY_WEIGHT = 25;
+    uint256 private constant EPIC_WEIGHT = 10;
+    uint256 private constant RARE_WEIGHT = 5;
+    uint256 private constant COLLECTOR_WEIGHT = 0;
 
     constructor(address _nftContractAddress) {
         nftContractAddress = _nftContractAddress;
 
-        rewardsMap[XUNICORN_WEIGHT] = 60;
-        rewardsMap[EXOTIC_WEIGHT] = 290;
-        rewardsMap[LEGENDARY_WEIGHT] = 320;
-        rewardsMap[EPIC_WEIGHT] = 190;
-        rewardsMap[RARE_WEIGHT] = 130;
-        rewardsMap[COLLECTOR_WEIGHT] = 1;
+        rewardsMap[XUNICORN_WEIGHT] = 50;
+        rewardsMap[EXOTIC_WEIGHT] = 50;
+        rewardsMap[LEGENDARY_WEIGHT] = 25;
+        rewardsMap[EPIC_WEIGHT] = 10;
+        rewardsMap[RARE_WEIGHT] = 5;
+        rewardsMap[COLLECTOR_WEIGHT] = 0;
 
         // Initialize totalRewards and totalPoints with small non-zero values
         totalRewards = 1 wei; // 1 wei
@@ -76,8 +76,8 @@ contract NFTRegistry {
         rewardRatio += msg.value / totalPoints;
     }
 
-    function registerNFT(uint256 tokenId) external {
-        address player = tx.origin;
+    function registerNFT(uint256 tokenId) public {
+        address player = msg.sender;
         require(IXENNFTContract(nftContractAddress).ownerOf(tokenId) == player, "You don't own this NFT.");
 
         // Calculate the reward points for the NFT
@@ -114,8 +114,16 @@ contract NFTRegistry {
         emit NFTRegistered(player, tokenId, rewardPoints);
     }
 
+    function registerNFTs(uint256[] memory tokenIds) external {
+        uint len = tokenIds.length;
+            for (uint256 i = 0; i < len; i++) {
+                registerNFT(tokenIds[i]);
+            }
+    }
+    }
+
     function isNFTRegistered(uint256 tokenId) public view returns (bool) {
-        address player = tx.origin;
+        address player = msg.sender;
         NFT[] storage userNFTs = users[player].userNFTs;
         for (uint256 j = 0; j < userNFTs.length; j++) {
             if (userNFTs[j].tokenId == tokenId) {
@@ -169,7 +177,7 @@ contract NFTRegistry {
     }
 
     function withdrawRewards() public payable {
-        address player = tx.origin;
+        address player = msg.sender;
         User storage userData = users[player];
         require(userData.userPoints > 0, "No XenFT's registered for this user");
 

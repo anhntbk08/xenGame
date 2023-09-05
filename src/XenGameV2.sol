@@ -518,7 +518,7 @@ receive() external payable {
     */
     function processKeyPurchase(uint256 maxKeysToPurchase, uint256 _amount) private {
         // Check if the amount is greater than or equal to 0
-        require(_amount >= 0, "Not enough Ether to purchase keys");
+        require(_amount > 0, "Not enough Ether to purchase keys");
 
         // Calculate the fractional keys based on the maximum number of keys to purchase
         uint256 fractionalKeys = maxKeysToPurchase * 1 ether;
@@ -856,7 +856,7 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
         Round storage round = rounds[currentRound];
 
         // Check if the current timestamp is after the round end time
-        require(block.timestamp > round.end, "Round has not yet ended.");
+        require(block.timestamp >= round.end, "Round has not yet ended.");
 
         // Identify the winner as the last person to have bought a key
         address winner = round.activePlayer;
