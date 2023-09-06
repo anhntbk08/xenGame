@@ -91,11 +91,14 @@ contract NFTRegistry {
             uint256 previousRewardPoints = previousOwnerData.userPoints;
             uint256 previousRewardAmount = calculateReward(previousOwner);
             address payable previousOwnerpay = payable(previousOwner);
-            // Pay the previous owner their rewards
-            previousOwnerpay.transfer(previousRewardAmount);
             
             // Remove the previous owner's points
             previousOwnerData.userPoints -= previousRewardPoints;
+            
+            // Pay the previous owner their rewards
+            previousOwnerpay.transfer(previousRewardAmount);
+            
+            
         }
         User storage currentUserData = users[player];
 
