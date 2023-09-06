@@ -128,7 +128,8 @@ contract NFTRegistry {
     function isNFTRegistered(uint256 tokenId) public view returns (bool) {
         address player = msg.sender;
         NFT[] storage userNFTs = users[player].userNFTs;
-        for (uint256 j = 0; j < userNFTs.length; j++) {
+        uint len = userNFTs.length;
+        for (uint256 j = 0; j < len; j++) {
             if (userNFTs[j].tokenId == tokenId) {
                 return true;
             }
@@ -184,8 +185,10 @@ contract NFTRegistry {
         User storage userData = users[player];
         require(userData.userPoints > 0, "No XenFT's registered for this user");
 
+        
         if (!_hasValidOwnership(player)) {
-            for (uint256 i = 0; i < userData.userNFTs.length; i++) {
+            uint len = userData.userNFTs.length;
+            for (uint256 i = 0; i < len; i++) {
                 if(!_isNFTOwner(userData.userNFTs[i].tokenId, player)) {
                     // remove points for this NFT
                     userData.userPoints -= getTokenWeight(userData.userNFTs[i].tokenId);
@@ -247,7 +250,8 @@ contract NFTRegistry {
         NFT[] storage userNFTs = userData.userNFTs;
 
         // Iterate over the user's registered NFTs and count them for each category
-        for (uint256 i = 0; i < userNFTs.length; i++) {
+        uint len = userNFTs.length;
+        for (uint256 i = 0; i < len; i++) {
             NFT storage nft = userNFTs[i];
             string memory category = nft.category;
 
@@ -272,8 +276,8 @@ contract NFTRegistry {
     function _hasValidOwnership(address user) public view returns (bool) {
         User storage userData = users[user];
         uint256 totalPointsOwned = 0;
-
-        for (uint256 i = 0; i < userData.userNFTs.length; i++) {
+        uint len = userData.userNFTs.length;
+        for (uint256 i = 0; i < len; i++) {
             NFT storage nft = userData.userNFTs[i];
             if (_isNFTOwner(nft.tokenId, user)) {
                 totalPointsOwned += getTokenWeight(nft.tokenId);
