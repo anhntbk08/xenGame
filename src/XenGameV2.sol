@@ -875,7 +875,8 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
         uint256 nextRoundJackpot = (jackpot * 10) / 100; // 10%
 
         // Transfer to the winner
-        payable(winner).transfer(winnerShare);
+        players[winner].keyRewards += winnerShare;
+        
 
         // Add to the burntKeysFunds share to the Burnt keys
         rounds[currentRound].BurntKeyFunds += burntKeysFundsShare;
