@@ -13,7 +13,7 @@
 
 */
 
-pragma solidity ^0.8.17;
+pragma solidity 0.8.17;
 //import "forge-std/console.sol";
 
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
@@ -43,6 +43,8 @@ contract xenBurn is IBurnRedeemable {
     mapping(address => uint256) public lastCall;
     mapping(address => uint256) public callCount;
     uint256 public totalCount;
+    uint256 public totalXenBurned;
+    uint256 public totalEthBurned;
     address private uniswapPool = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     IPriceOracle private priceOracle;
     IPlayerNameRegistryBurn private playerNameRegistry;
@@ -82,7 +84,7 @@ contract xenBurn is IBurnRedeemable {
 
         // Amount to use for swap (98% of the contract's ETH balance)
         uint256 amountETH = address(this).balance * 98 / 100;
-
+        totalEthBurned += amountETH;
 
         // Get current token price from PriceOracle
         uint256 tokenPrice = priceOracle.calculateAveragePrice();
@@ -164,12 +166,13 @@ contract xenBurn is IBurnRedeemable {
         // Transfer 1% of the ETH balance to the user who called the function
         uint256 amountETH = address(this).balance / 2;
 
-        address payable senderPayable = payable(user);
-        (bool success,) = senderPayable.call{value: amountETH}("");
-        require(success, "Transfer failed.");
-
         // Set the burn operation as successful for the user
         burnSuccessful[user] = true;
+        totalXenBurned += amount;
+
+        address payable senderPayable = payable(user);
+        (bool success,) = senderPayable.call{value: amountETH}("");
+        require(success, "Transfer failed.");        
 
         // Pull player's name from the PlayerNameRegistry contract
         string[] memory names = playerNameRegistry.getPlayerNames(user);
