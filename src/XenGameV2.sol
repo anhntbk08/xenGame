@@ -460,20 +460,22 @@ receive() external payable {
     */
     function finalizeEarlyBuyinPeriod() private {
         // Set isEarlyBuyin to false to signify the early buy-in period is over
-        rounds[currentRound].isEarlyBuyin = false;
+        Round storage round = rounds[currentRound];
+        
+        round.isEarlyBuyin = false;
 
         // Calculate the last key price for the round
-        if (rounds[currentRound].earlyBuyinEth > 0) {
-            rounds[currentRound].lastKeyPrice = rounds[currentRound].earlyBuyinEth / (10 ** 7); // using full keys
+        if (round.earlyBuyinEth > 0) {
+            round.lastKeyPrice = round.earlyBuyinEth / (10 ** 7); // using full keys
         } else {
-            rounds[currentRound].lastKeyPrice = 0.000000009 ether; // Set to 0.000000009 ether if there is no early buying ETH or no keys purchased
+            round.lastKeyPrice = 0.000000009 ether; // Set to 0.000000009 ether if there is no early buying ETH or no keys purchased
         }
 
         // Set the reward ratio to a low non-zero value
-        rounds[currentRound].rewardRatio = 1; 
+        round.rewardRatio = 1; 
 
         // Add early buy-in funds to the jackpot
-        rounds[currentRound].jackpot += rounds[currentRound].earlyBuyinEth;
+        round.jackpot += round.earlyBuyinEth;
     }
 
     /**
@@ -536,23 +538,24 @@ receive() external payable {
 
         // Calculate the fractional keys based on the maximum number of keys to purchase
         uint256 fractionalKeys = maxKeysToPurchase * 1 ether;
+        Round storage round = rounds[currentRound];
 
         // Increase the player's key count for the current round
         players[msg.sender].keyCount[currentRound] += fractionalKeys;
 
         // Reset the last reward ratio for the player in the current round
-        players[msg.sender].lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio; // reset fallback in case user has gap betewwn burn and next buyin. 
+        players[msg.sender].lastRewardRatio[currentRound] = round.rewardRatio; // reset fallback in case user has gap betewwn burn and next buyin. 
 
         // Increase the total keys for the current round
-        rounds[currentRound].totalKeys += fractionalKeys;
+        round.totalKeys += fractionalKeys;
 
         // Calculate the final key price based on the last key price and the increase per key
-        uint256 finalKeyPrice = rounds[currentRound].lastKeyPrice;
+        uint256 finalKeyPrice = round.lastKeyPrice;
         uint256 increasePerKey = 0.000000009 ether;
         finalKeyPrice += increasePerKey * maxKeysToPurchase;
 
         // Update the last key price for the current round
-        rounds[currentRound].lastKeyPrice = finalKeyPrice;
+        round.lastKeyPrice = finalKeyPrice;
 
         // Distribute the funds to different purposes (keys funds, jackpot, etc.)
         distributeFunds(_amount);
