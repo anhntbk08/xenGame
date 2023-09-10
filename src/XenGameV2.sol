@@ -176,11 +176,14 @@ contract XenGame {
         // Check if the round is active or has ended
         require(isRoundActive() || isRoundEnded(), "Cannot purchase keys during the round gap");
 
+        uint256 _roundId = currentRound;
+        Round storage round = rounds[currentRound];
+
         // If the round has ended and there are no total keys, set a new end time for the round
         if (isRoundEnded()) {
 
-            if (rounds[currentRound].totalKeys == 0){
-                rounds[currentRound].end = block.timestamp + 600;
+            if (round.totalKeys == 0){
+                round.end = block.timestamp + 600;
                 players[msg.sender].keyRewards += _amount;
                 return;
             }
@@ -193,21 +196,22 @@ contract XenGame {
 
         // If the round is active
         if (isRoundActive()) {
-            if (block.timestamp <= rounds[currentRound].start + EARLY_BUYIN_DURATION) {
+            if (block.timestamp <= round.start + EARLY_BUYIN_DURATION) {
                 // If we are in the early buy-in period, follow early buy-in logic
                 buyCoreEarly(_amount);
-            } else if (!rounds[currentRound].ended) {
+            } else if (!round.ended) {
                 
                 // Check if this is the first transaction after the early buy-in period
-                if (rounds[currentRound].isEarlyBuyin) {
+                if (round.isEarlyBuyin) {
                     updateTotalKeysForRound();
                     finalizeEarlyBuyinPeriod();
                 }
 
                 // Check if the last key price exceeds the jackpot threshold and reset it if necessary
-                if (rounds[currentRound].lastKeyPrice > calculateJackpotThreshold()) {
+                if (round.lastKeyPrice > calculateJackpotThreshold()) {
                     uint256 newPrice = resetPrice();
-                    rounds[currentRound].lastKeyPrice = newPrice;
+                    round.lastKeyPrice = newPrice;
+                    emit PriceReset(msg.sender, newPrice, block.timestamp);
                 }
 
                 // Calculate the maximum number of keys to purchase and the total cost
@@ -220,18 +224,18 @@ contract XenGame {
                 }
 
                 // Process users rewards for the current round
-                processRewards(currentRound);
+                processRewards(_roundId);
 
                 // Set the last reward ratio for the player in the current round
-                if (players[msg.sender].lastRewardRatio[currentRound] == 0) {
-                    players[msg.sender].lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio;
+                if (players[msg.sender].lastRewardRatio[_roundId] == 0) {
+                    players[msg.sender].lastRewardRatio[_roundId] = round.rewardRatio;
                 }
 
                 // Process the key purchase with the maximum number of keys and total cost
                 processKeyPurchase(maxKeysToPurchase, totalCost);
 
                 // Set the active player for the round
-                rounds[currentRound].activePlayer = msg.sender;
+                round.activePlayer = msg.sender;
 
                 // Adjust the end time of the round based on the number of keys purchased
                 adjustRoundEndTime(maxKeysToPurchase);
@@ -248,11 +252,13 @@ contract XenGame {
         // Check if the round is active or has ended\
         require(isRoundActive() || isRoundEnded(), "Cannot purchase keys during the round gap");
 
+        uint256 _roundId = currentRound;
+        Round storage round = rounds[currentRound];
         // If the round has ended and there are no total keys, set a new end time for the round
         if (isRoundEnded()) {
 
-            if (rounds[currentRound].totalKeys == 0){
-                rounds[currentRound].end = block.timestamp + 600;
+            if (round.totalKeys == 0){
+                round.end = block.timestamp + 600;
                 players[msg.sender].keyRewards += _amount;
                 return;
             }
@@ -266,20 +272,22 @@ contract XenGame {
 
         if (isRoundActive()) {
 
-            if (block.timestamp <= rounds[currentRound].start + EARLY_BUYIN_DURATION) {
+            if (block.timestamp <= round.start + EARLY_BUYIN_DURATION) {
                 // If we are in the early buy-in period, follow early buy-in logic
                 buyCoreEarly(_amount);
-            } else if (!rounds[currentRound].ended) {
+            } else if (!round.ended) {
                 // Check if this is the first transaction after the early buy-in period
-                if (rounds[currentRound].isEarlyBuyin) {
+                if (round.isEarlyBuyin) {
                     updateTotalKeysForRound();
                     finalizeEarlyBuyinPeriod();
                 }
 
                 // Check if the last key price exceeds the jackpot threshold and reset it if necessary
-                if (rounds[currentRound].lastKeyPrice > calculateJackpotThreshold()) {
+                if (round.lastKeyPrice > calculateJackpotThreshold()) {
                     uint256 newPrice = resetPrice();
-                    rounds[currentRound].lastKeyPrice = newPrice;
+                    round.lastKeyPrice = newPrice;
+                    emit PriceReset(msg.sender, newPrice, block.timestamp);
+
                 }
 
                 // Calculate cost for _numberOfKeys
@@ -290,18 +298,18 @@ contract XenGame {
                 uint256 remainingEth = _amount - cost;
 
                 // Process user rewards for the current round
-                processRewards(currentRound);
+                processRewards(_roundId);
 
                 // Set the last reward ratio for the player in the current round if first user key buy. 
-                if (players[msg.sender].lastRewardRatio[currentRound] == 0) {
-                    players[msg.sender].lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio;
+                if (players[msg.sender].lastRewardRatio[_roundId] == 0) {
+                    players[msg.sender].lastRewardRatio[_roundId] = round.rewardRatio;
                 }
 
                 // Process the key purchase with the specified number of keys and cost
                 processKeyPurchase(_numberOfKeys, cost);
 
                 // Set the active player for the round
-                rounds[currentRound].activePlayer = msg.sender;
+                round.activePlayer = msg.sender;
 
                 // Adjust the end time of the round based on the number of keys purchased
                 adjustRoundEndTime(_numberOfKeys);
@@ -879,7 +887,7 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
         
 
         // Add to the burntKeysFunds share to the Burnt keys
-        rounds[currentRound].BurntKeyFunds += burntKeysFundsShare;
+        round.BurntKeyFunds += burntKeysFundsShare;
 
         // Set the starting jackpot for the next round
         rounds[currentRound + 1].jackpot = nextRoundJackpot;
@@ -1099,5 +1107,6 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
     event ReferralPaid(address player, address referrer, uint256 amount, uint256 timestamp);
     event KeyBurn(address player, uint256 Keys, uint256 timestamp);
     event BurnKeysRewardWithdraw(address player, uint256 reward, uint256 RoundNumber, uint256 timestamp);
+    event PriceReset(address player, uint256 newPrice, uint256 timestamp);
 
 }
