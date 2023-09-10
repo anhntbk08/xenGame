@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity 0.8.17;
 
 interface IXENNFTContract {
     function ownerOf(uint256) external view returns (address);
@@ -123,7 +123,7 @@ contract NFTRegistry {
                 registerNFT(tokenIds[i]);
             }
     }
-    }
+    
 
     function isNFTRegistered(uint256 tokenId) public view returns (bool) {
         address player = msg.sender;
