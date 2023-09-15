@@ -88,16 +88,29 @@ contract NFTRegistry {
         require(previousOwner != player, "You already have this NFT regestered");
         if (previousOwner != address(0) && previousOwner != player) {
             User storage previousOwnerData = users[previousOwner];
-            uint256 previousRewardPoints = previousOwnerData.userPoints;
+            
             uint256 previousRewardAmount = calculateReward(previousOwner);
             address payable previousOwnerpay = payable(previousOwner);
             
-            // Remove the previous owner's points
-            previousOwnerData.userPoints -= previousRewardPoints;
+            // Remove the previous owner's points            
+            previousOwnerData.userPoints -= rewardPoints;
+            totalPoints -= rewardPoints;
+            
+            // Remove the NFT from the previous owner's list
+            for (uint256 i = 0; i < previousOwnerData.userNFTs.length; i++) {
+                if (previousOwnerData.userNFTs[i].tokenId == tokenId) {
+                    // Shift all elements to the left
+                    for (uint256 j = i; j < previousOwnerData.userNFTs.length - 1; j++) {
+                        previousOwnerData.userNFTs[j] = previousOwnerData.userNFTs[j + 1];
+                    }
+                    // Remove the last element
+                    previousOwnerData.userNFTs.pop();
+                    break;
+                }
+            }
             
             // Pay the previous owner their rewards
             previousOwnerpay.transfer(previousRewardAmount);
-            
             
         }
         User storage currentUserData = users[player];
@@ -187,19 +200,17 @@ contract NFTRegistry {
 
         
         if (!_hasValidOwnership(player)) {
-            uint len = userData.userNFTs.length;
-            for (uint256 i = 0; i < len; i++) {
-                if(!_isNFTOwner(userData.userNFTs[i].tokenId, player)) {
+    for (uint256 i = 0; i < userData.userNFTs.length; i++) {
+        if(!_isNFTOwner(userData.userNFTs[i].tokenId, player)) {
                     // remove points for this NFT
                     userData.userPoints -= getTokenWeight(userData.userNFTs[i].tokenId);
                     // remove NFT from user's list
-                    userData.userNFTs[i] = userData.userNFTs[userData.userNFTs.length - 1];
+                    for (uint256 j = i; j < userData.userNFTs.length - 1; j++) {
+                        userData.userNFTs[j] = userData.userNFTs[j + 1];
+                    }
                     userData.userNFTs.pop();
-                    
-
-                    // using min, to make sure i is not negative
-                    // i should be decreased to rerun the check for the NFT switched from the end
-                    i = i == 0 ? i : i - 1;
+                    // decrease i to rerun the check for the NFT that was shifted from the right
+                    i--;
                 }
             }
         }
