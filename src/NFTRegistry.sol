@@ -95,6 +95,7 @@ contract NFTRegistry {
             previousOwnerData.userPoints -= rewardPoints;
             totalPoints -= rewardPoints;
             previousOwnerData.userRewards += previousRewardAmount;
+            previousOwner.lastRewardRatio = rewardRatio;
             
             // Remove the NFT from the previous owner's list
             for (uint256 i = 0; i < previousOwnerData.userNFTs.length; i++) {
