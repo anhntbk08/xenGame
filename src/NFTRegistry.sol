@@ -15,7 +15,6 @@ contract NFTRegistry {
         NFT[] userNFTs;
         uint256 userRewards; // Tracks total rewards sebt to user.
         uint256 userPoints;
-        uint256 userLastRewarded; //-----------------
         uint256 lastRewardRatio;
     }
 
@@ -95,6 +94,7 @@ contract NFTRegistry {
             // Remove the previous owner's points            
             previousOwnerData.userPoints -= rewardPoints;
             totalPoints -= rewardPoints;
+            previousOwnerData.userRewards += previousRewardAmount;
             
             // Remove the NFT from the previous owner's list
             for (uint256 i = 0; i < previousOwnerData.userNFTs.length; i++) {
@@ -111,7 +111,7 @@ contract NFTRegistry {
             
             // Pay the previous owner their rewards
             previousOwnerpay.transfer(previousRewardAmount);
-            
+
         }
         User storage currentUserData = users[player];
 
@@ -220,7 +220,6 @@ contract NFTRegistry {
 
         // Effects
         userData.userRewards += rewardAmount;
-        userData.userLastRewarded = totalRewards;
         userData.lastRewardRatio = rewardRatio;
 
         // Interactions
