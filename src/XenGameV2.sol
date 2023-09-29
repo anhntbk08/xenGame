@@ -9,10 +9,30 @@
  ██╔██╗ ██╔══╝  ██║╚██╗██║██║   ██║██╔══██║██║╚██╔╝██║██╔══╝  
 ██╔╝ ██╗███████╗██║ ╚████║╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗
 ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝
-                                                              
+
+
+
+This project has been developed under the guidelines set forth by the Fair Crypto Foundation, adhering to its first principles of self-custody, transparency, consensus-based trust, and permissionless value exchange. Accordingly, this project values the ethos of decentralization and exercises these principles by not incorporating any administrative access keys or functions.
+
+Given these considerations, it is important to note that all users are encouraged to conduct their own research and due diligence prior to using this contract. Potential users should understand, evaluate, and accept the inherent risks associated with its use, owing to the blockchain and smart contract technology underpinning it.
+
+Please be advised, due to the intentional absence of administrative access keys in this smart contract, and the elimination of central authority, the original developers or contributors maintain no control over the system once it is deployed, placing them on an equivalent footing with any other user.
+
+The developers, hence, assume no liability or responsibility whatsoever for any future errors, exploits, or security breaches that may occur, unforeseen or otherwise. This software is distributed "AS-IS" without warranties or conditions of any kind, either expressed or implied.
+
+As an open-source project, all users participate at their own risk and assume full responsibility for all actions undertaken in connection with this contract, including but not limited to any loss or damage incurred. Each user, by engaging with the contract and its functionalities, comprehensively and irrevocably accepts this accountability.
+
+Moreover, potential and existing users should be fully aware of and stay compliant with the laws and regulations in their respective jurisdictions. It is the sole responsibility of each user to understand and adhere to the relevant laws and regulations applicable in their location.
+
+Please be advised that interactions with cryptocurrencies and blockchain-based technologies come with significant risk. Users should always exercise utmost caution, and use this contract only after fully appreciating the implications on both a technical and legal level.
+
+By using this contract, the user explicitly acknowledges and agrees to these terms and conditions. Failure to heed these disclaimers and instructions may lead to adversarial consequences for which neither the developers nor any other associated party shall be held responsible.
+
+             
+
 */
 
-pragma solidity ^0.8.17;
+pragma solidity 0.8.17;
 
 interface IXENnftContract {
     function ownerOf(uint256 tokenId) external view returns (address);
@@ -54,7 +74,11 @@ contract XenGame {
     uint256 constant APEX_FUND_PERCENTAGE = 500; // 5% or 5000 basis points
     uint256 constant PRECISION = 10 ** 18;
     address private playerNames;
+    uint256 private loadedPlayers = 0;
+    bool public migrationLocked = false;
+    bool public migrationPhaseTwoCompleted = false;
 
+    
     struct Player {
         mapping(uint256 => uint256) keyCount; //round to keys
         mapping(uint256 => uint256) burntKeys;
@@ -75,7 +99,7 @@ contract XenGame {
         address activePlayer;
         bool ended;
         bool isEarlyBuyin;
-        uint256 keysFunds; // ETH dedicated to key holders
+        uint256 keysFunds; // not used in logic, old code 
         uint256 jackpot; // ETH for the jackpot
         uint256 earlyBuyinEth; // Total ETH received during the early buy-in period
         uint256 lastKeyPrice; // The last key price for this round
@@ -94,23 +118,156 @@ contract XenGame {
     mapping(address => mapping(uint256 => bool)) public earlyKeysReceived;
 
     constructor(
-        address _nftContractAddress,
-        address _nftRegistryAddress,
-        address _xenBurnContract,
-        address _playerNameRegistryAddress,
-        uint256 _startTime
-    ) {
-        nftContract = IXENnftContract(_nftContractAddress);
-        nftRegistry = INFTRegistry(_nftRegistryAddress);
-        xenBurn = XENBurn(_xenBurnContract);
-        playerNameRegistry = IPlayerNameRegistry(_playerNameRegistryAddress);
-        playerNames = _playerNameRegistryAddress;
-
-        currentRound = 1;        
-        rounds[currentRound].start = _startTime;     
-        rounds[currentRound].end = rounds[currentRound].start + 12 hours;         
-        rounds[currentRound].ended = false;
+        // address _nftContractAddress,
+        // address _nftRegistryAddress,
+        // address _xenBurnContract,
+        // address _playerNameRegistryAddress,
         
+        // address[] memory playeraddresses,
+        // uint256[] memory playerRound1KeyCount,       // array parameter
+        // uint256[] memory playerRound1BurntKeys,      // array parameter
+        // uint256[] memory playerRound1EarlyBuyinPoints, // array parameter
+        // uint256[] memory playerReferralRewards,      // array parameter        
+        // uint256[] memory playerRound1RewardRatio,    // array parameter
+        // uint256[] memory playerKeyRewards,           // array parameter
+        // uint256[] memory playerNumberOfReferrals      // array parameter
+    
+    ) {
+
+        // require(playeraddresses.length == playerRound1KeyCount.length, "Length mismatch: playeraddresses and playerRound1KeyCount");
+        // require(playeraddresses.length == playerRound1BurntKeys.length, "Length mismatch: playeraddresses and playerRound1BurntKeys");
+        // require(playeraddresses.length == playerRound1EarlyBuyinPoints.length, "Length mismatch: playeraddresses and playerRound1EarlyBuyinPoints");
+        // require(playeraddresses.length == playerReferralRewards.length, "Length mismatch: playeraddresses and playerReferralRewards");
+        // require(playeraddresses.length == playerRound1RewardRatio.length, "Length mismatch: playeraddresses and playerRound1RewardRatio");
+        // require(playeraddresses.length == playerKeyRewards.length, "Length mismatch: playeraddresses and playerKeyRewards");
+        // require(playeraddresses.length == playerNumberOfReferrals.length, "Length mismatch: playeraddresses and playerNumberOfReferrals");
+
+        nftContract = IXENnftContract(0xe9d00D1A70AB37b7902850e7f8b6bd432e1efe71);  // X1 testing address
+        nftRegistry = INFTRegistry(0x5C0f5eCbb016A015721c9571E51FaEF1C41ba91E); // X1 testing address
+        xenBurn = XENBurn(0xfF164e55a6075540e340A8232f317dCD6691B568); // X1 testing address
+        playerNameRegistry = IPlayerNameRegistry(0x835940AeADc403322f62C361A1e16AfD47035AF6); // X1 testing address
+        playerNames = 0x835940AeADc403322f62C361A1e16AfD47035AF6; // X1 testing address
+
+        currentRound = 1;
+        rounds[currentRound].totalKeys = 10097300000000000000000000;
+        rounds[currentRound].burntKeys = 338175000000000000000000;
+        rounds[currentRound].jackpot = 63566409521227276389;
+        rounds[currentRound].earlyBuyinEth = 59101124779840297779;
+        rounds[currentRound].lastKeyPrice = 44087673862494;
+        rounds[currentRound].rewardRatio = 994363746378;
+        rounds[currentRound].uniquePlayers = 198;        
+        rounds[currentRound].start = 1694966400;     
+        rounds[currentRound].end = block.timestamp + 12 hours;  // Update to set new end time on migration        
+        rounds[currentRound].ended = false;
+
+        // Loop through the playeraddresses, playerReferralRewards, playerKeyRewards, and playerNumberOfReferrals arrays, and set the player data
+        // for (uint i = 0; i < playeraddresses.length; i++) {            
+
+            
+        //         players[playeraddresses[i]].keyCount[1] = playerRound1KeyCount[i];
+            
+        //     if (playerRound1BurntKeys[i] > 0) {
+        //         players[playeraddresses[i]].burntKeys[1] = playerRound1BurntKeys[i];
+        //     }
+        //     if (playerRound1EarlyBuyinPoints[i] > 0) {
+        //         players[playeraddresses[i]].earlyBuyinPoints[1] = playerRound1EarlyBuyinPoints[i];
+        //     }
+        //     if (playerReferralRewards[i] > 0) {
+        //         players[playeraddresses[i]].referralRewards = playerReferralRewards[i];
+        //     }
+            
+        //         players[playeraddresses[i]].lastRewardRatio[1] = playerRound1RewardRatio[i];
+            
+            
+        //         players[playeraddresses[i]].keyRewards = playerKeyRewards[i];
+            
+        //     if (playerNumberOfReferrals[i] > 0) {
+        //         players[playeraddresses[i]].numberOfReferrals = playerNumberOfReferrals[i];
+        //     }
+
+        //     if (players[playeraddresses[i]].earlyBuyinPoints[1] > 0 && players[playeraddresses[i]].keyCount[1] > 0) {
+        //         earlyKeysReceived[playeraddresses[i]][1] = true;
+        //     }
+
+        //     // Add the player to the isPlayerInRound mapping for the current round
+        //     isPlayerInRound[currentRound][playeraddresses[i]] = true;
+
+        //     rounds[currentRound].playerAddresses.push(playeraddresses[i]);
+        // }
+        
+    }
+
+    function migrateUserBasicData(
+        address[] calldata playeraddresses,
+        uint256[] calldata playerRound1KeyCount,
+        uint256[] calldata playerRound1BurntKeys,
+        uint256[] calldata playerRound1EarlyBuyinPoints,
+        string[] calldata playerLastReferrer
+    ) external {
+        require(!migrationLocked, "Migration has been locked");
+        require(loadedPlayers + playeraddresses.length == 198, "Cannot exceed 198 users");
+
+        for (uint i = 0; i < 198; i++) {
+            players[playeraddresses[i]].keyCount[1] = playerRound1KeyCount[i];
+
+            if (playerRound1BurntKeys[i] > 0) {
+                players[playeraddresses[i]].burntKeys[1] = playerRound1BurntKeys[i];
+            }
+            if (playerRound1EarlyBuyinPoints[i] > 0) {
+                players[playeraddresses[i]].earlyBuyinPoints[1] = playerRound1EarlyBuyinPoints[i];
+            }
+
+            if (bytes(playerLastReferrer[i]).length > 0) {
+                players[playeraddresses[i]].lastReferrer = playerLastReferrer[i];
+            }
+
+            isPlayerInRound[currentRound][playeraddresses[i]] = true;
+
+            rounds[currentRound].playerAddresses.push(playeraddresses[i]);
+            loadedPlayers++;
+            if (loadedPlayers == 198) {
+                migrationLocked = true;
+            }
+        }
+    } 
+
+    function migrateUserReferralAndRewardData(
+        address[] calldata playeraddresses,
+        uint256[] calldata playerReferralRewards,
+        uint256[] calldata playerRound1RewardRatio,
+        uint256[] calldata playerKeyRewards,
+        uint256[] calldata playerNumberOfReferrals
+        
+    ) external {
+        require(migrationLocked, "Migrate base users first");
+        require(loadedPlayers == 198, "All players must be loaded first");
+        require(!migrationPhaseTwoCompleted, "Phase two migration already completed");
+
+        for (uint i = 0; i < 198; i++) {
+            if (playerReferralRewards[i] > 0) {
+                players[playeraddresses[i]].referralRewards = playerReferralRewards[i];
+            }
+
+            players[playeraddresses[i]].lastRewardRatio[1] = playerRound1RewardRatio[i];
+
+            
+
+            players[playeraddresses[i]].keyRewards = playerKeyRewards[i];
+
+            if (playerNumberOfReferrals[i] > 0) {
+                players[playeraddresses[i]].numberOfReferrals = playerNumberOfReferrals[i];
+            }
+
+            if (players[playeraddresses[i]].earlyBuyinPoints[1] > 0 && players[playeraddresses[i]].keyCount[1] > 0) {
+                earlyKeysReceived[playeraddresses[i]][1] = true;
+            }
+        }
+
+        migrationPhaseTwoCompleted = true;
+    }  
+
+    function seedEth() external payable {
+        // This function is only here to reseed the eth from the migration         
     }
 
     /**
@@ -295,7 +452,7 @@ contract XenGame {
                 require(cost <= _amount, "Not enough ETH to buy the specified number of keys");
 
                 // Calculate the remaining ETH after the key purchase
-                uint256 remainingEth = _amount - cost;
+                //uint256 remainingEth = _amount - cost;
 
                 // Process user rewards for the current round
                 processRewards(_roundId);
@@ -315,9 +472,9 @@ contract XenGame {
                 adjustRoundEndTime(_numberOfKeys);
 
                 // Transfer any remaining ETH back to the player and store it in their key rewards
-                if (remainingEth > 0) {
-                    players[msg.sender].keyRewards += remainingEth;
-                }
+                // if (remainingEth > 0) {
+                //     players[msg.sender].keyRewards += remainingEth;
+                // }
             }
         } 
     }
@@ -357,6 +514,30 @@ contract XenGame {
         // Make sure there are enough rewards to purchase at least one key
         require(maxKeysToPurchase > 0, "Not enough rewards to purchase any keys");
 
+        address referrer = playerNameRegistry.getPlayerAddress(players[msg.sender].lastReferrer);
+                   
+
+            // Calculate the referral reward as a percentage of the incoming ETH
+            uint256 referralReward = (reward * REFERRAL_REWARD_PERCENTAGE) / 10000; // 10% of the incoming ETH
+
+            if (referralReward > 0) {
+                // Added check here to ensure referral reward is greater than 0
+                uint256 splitReward = referralReward / 2; // Split the referral reward
+
+                // Add half of the referral reward to the referrer's stored rewards
+                players[referrer].referralRewards += splitReward;
+                players[referrer].numberOfReferrals++;
+
+                if (referrer != address(0)){
+                // Add the other half of the referral reward to the player's stored rewards
+                player.referralRewards += splitReward;
+                }
+
+                emit ReferralPaid(msg.sender, referrer, splitReward, block.timestamp);
+            }            
+            
+                
+            
         // Buy keys using rewards
         buyCore(reward);
     }
@@ -932,10 +1113,11 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
     function getPendingRewards(address playerAddress, uint256 roundNumber) public view returns (uint256) {
         // Get the player and round information
         Player storage player = players[playerAddress];
+        uint keys = getPlayerKeysCount(playerAddress, roundNumber);
 
         // Calculate the pending rewards based on the player's key count and the difference in reward ratio
         uint256 pendingRewards = (
-            (player.keyCount[roundNumber] / 1 ether)
+            (keys / 1 ether)
                 * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])
         );
 
@@ -1072,6 +1254,14 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
 
     function getPlayerEarlyBuyinPoints(address playerAddress, uint256 round) public view returns (uint256) {
         return players[playerAddress].earlyBuyinPoints[round];
+    }
+
+    function getPlayerReferralRewards(address playerAddress) public view returns (uint256) {
+        return players[playerAddress].referralRewards;
+    }
+
+    function getPlayerLastReferrer(address playerAddress) public view returns (string memory) {
+        return players[playerAddress].lastReferrer;
     }
 
     function getlastRewardRatio(address playerAddress, uint256 round) public view returns (uint256) {
