@@ -666,25 +666,60 @@ receive() external payable {
     * @return totalCost The total cost in ETH to purchase the maximum number of keys.
     */
     function calculateMaxKeysToPurchase(uint256 _amount) public view returns (uint256 maxKeys, uint256 totalCost) {
+        // Fetch the initial price of a key
         uint256 initialKeyPrice = getKeyPrice();
+
+        // If the user's amount is less than the price of a single key, return as no keys can be bought
+        if (_amount < initialKeyPrice) {
+            return (0, 0);
+        }
+
+        // left and right are the boundaries for the binary search of the maximum number of keys that can be bought.
+        // Initialize the left to zero and right to the maximum number of keys that could be bought if the price never increased.
         uint256 left = 0;
         uint256 right = _amount / initialKeyPrice;
+
+        // Variable to store the total cost of keys
         uint256 _totalCost;
 
+        // Binary search to find the maximum number of keys the user can buy
         while (left < right) {
-            uint256 mid = (left + right + 1) / 2;
-            _totalCost = calculatePriceForKeys(mid);
+            // Find the mid point
+            uint256 mid = (left + right) / 2;
 
-            if (_totalCost <= _amount) {
-                left = mid;
+            // Calculate the cost to purchase mid number of keys
+            _totalCost = calculatePriceForKeys(mid);
+            
+            uint256 nextCost;
+
+            // Ensure we don't get an overflow when we add 1 to mid
+            if (mid + 1 > mid) {
+                // Calculate the cost to purchase mid + 1 keys
+                nextCost = calculatePriceForKeys(mid + 1);
+            }
+
+            // Check to see if the user is able to purchase mid keys.
+            // If not, decrease the upper limit. If they can, increase the lower limit
+            // If the user can purchase mid+1 keys, then it should not exit, hence nextCost > _amount is required
+            if (_totalCost <= _amount && (mid == right || nextCost > _amount)) {
+                maxKeys = mid;
+                break;
+            } else if (_totalCost <= _amount) {
+                left = mid + 1;
             } else {
                 right = mid - 1;
             }
         }
 
-        maxKeys = left;
-        _totalCost = calculatePriceForKeys(left);
+        // If the binary search completes without finding a suitable number of keys, set maxKeys to left
+        if (maxKeys == 0) {
+            maxKeys = left;
+        }
 
+        // Calculate the cost for the final number of keys again to ensure accuracy
+        _totalCost = calculatePriceForKeys(maxKeys);
+
+        // Return the maximum number of keys that can be bought and the total cost for those keys
         return (maxKeys, _totalCost);
     }
 
