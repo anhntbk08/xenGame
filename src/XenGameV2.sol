@@ -147,7 +147,7 @@ contract XenGame {
         // AUDIT playerNames --> should be fee receiver
         playerNames = 0x835940AeADc403322f62C361A1e16AfD47035AF6; // X1 testing address
 
-        // move to a preset functions 
+        // move to a preset functions
 
         currentRound = 1;
         rounds[currentRound].totalKeys = 10097300000000000000000000;
@@ -157,7 +157,7 @@ contract XenGame {
         rounds[currentRound].lastKeyPrice = 44087673862494;
         rounds[currentRound].rewardRatio = 994363746378;
         rounds[currentRound].uniquePlayers = 198;
-        rounds[currentRound].start = 1694966400;
+        rounds[currentRound].start = block.timestamp;
         rounds[currentRound].end = block.timestamp + 12 hours; // Update to set new end time on migration
         rounds[currentRound].ended = false;
     }
@@ -344,6 +344,7 @@ contract XenGame {
                 }
 
                 // Check if the last key price exceeds the jackpot threshold and reset it if necessary
+                // AUDIT: TODO verify this flow
                 if (round.lastKeyPrice > calculateJackpotThreshold()) {
                     uint256 newPrice = resetPrice();
                     round.lastKeyPrice = newPrice;
@@ -468,7 +469,6 @@ contract XenGame {
                 // Adjust the end time of the round based on the number of keys purchased
                 adjustRoundEndTime(_numberOfKeys);
 
-                
             }
         }
     }
@@ -616,6 +616,11 @@ contract XenGame {
         return
             block.timestamp >= rounds[_roundId].start &&
             block.timestamp < rounds[_roundId].end;
+    }
+
+    function getRound() public view returns (uint, uint, uint) {
+        uint256 _roundId = currentRound;
+        return ( currentRound, rounds[_roundId].start, rounds[_roundId].end );
     }
 
     /**
@@ -873,18 +878,14 @@ contract XenGame {
      * @dev Retrieves the current key price for the active round.
      * @return The current key price.
      */
+    // AUDIT: improved code
     function getKeyPrice() public view returns (uint256) {
         uint256 _roundId = currentRound;
-
-        // Fetch the last key price
+    
         uint256 lastKeyPrice = rounds[_roundId].lastKeyPrice;
 
-        // If the price is 0, return 0.000000009 ether, else return the last set price
-        if(lastKeyPrice == 0) {
-            return 0.000000009 ether;
-        } else {
-            return lastKeyPrice;
-        }
+        // Return either the last key price or a default value if it's zero
+        return (lastKeyPrice == 0) ? 0.000000009 ether : lastKeyPrice;
     }
 
     /**
