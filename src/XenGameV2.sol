@@ -33,14 +33,16 @@ By using this contract, the user explicitly acknowledges and agrees to these ter
 */
 
 pragma solidity 0.8.17;
-
+import "forge-std/console.sol";
 interface IXENnftContract {
     function ownerOf(uint256 tokenId) external view returns (address);
 }
 
 interface INFTRegistry {
     function registerNFT(uint256 tokenId) external;
+
     function isNFTRegistered(uint256 tokenId) external view returns (bool);
+
     function addToPool() external payable;
 }
 
@@ -49,9 +51,18 @@ interface XENBurn {
 }
 
 interface IPlayerNameRegistry {
-    function registerPlayerName(address _address, string memory _name) external payable;
-    function getPlayerAddress(string memory _name) external view returns (address);
-    function getPlayerFirstName(address playerAddress) external view returns (string memory);
+    function registerPlayerName(
+        address _address,
+        string memory _name
+    ) external payable;
+
+    function getPlayerAddress(
+        string memory _name
+    ) external view returns (address);
+
+    function getPlayerFirstName(
+        address playerAddress
+    ) external view returns (string memory);
 }
 
 contract XenGame {
@@ -65,20 +76,21 @@ contract XenGame {
     uint256 constant KEY_PRICE_INCREMENT_PERCENTAGE = 10; // 0.099% or approx 10 basis points
     uint256 constant REFERRAL_REWARD_PERCENTAGE = 1000; // 10% or 1000 basis points
     uint256 constant NFT_POOL_PERCENTAGE = 500; // 5% or 500 basis points
-    uint256 constant ROUND_GAP = 24 hours;// 24 hours round gap
-    uint256 constant EARLY_BUYIN_DURATION = 300; // *********************************************************** updated to 5 min  
+    uint256 constant ROUND_GAP = 24 hours; // 24 hours round gap
+    uint256 constant EARLY_BUYIN_DURATION = 300; // *********************************************************** updated to 5 min
 
     uint256 constant KEYS_FUND_PERCENTAGE = 5000; // 50% or 5000 basis points
     uint256 constant JACKPOT_PERCENTAGE = 3000; // 30% or 3000 basis points
     uint256 constant BURN_FUND_PERCENTAGE = 1500; // 15% or 1500 basis points
     uint256 constant APEX_FUND_PERCENTAGE = 500; // 5% or 5000 basis points
     uint256 constant PRECISION = 10 ** 18;
+
+    // AUDIT the order is not optimized
     address private playerNames;
     uint256 private loadedPlayers = 0;
     bool public migrationLocked = false;
     bool public migrationPhaseTwoCompleted = false;
 
-    
     struct Player {
         mapping(uint256 => uint256) keyCount; //round to keys
         mapping(uint256 => uint256) burntKeys;
@@ -87,27 +99,26 @@ contract XenGame {
         string lastReferrer; // Track last referrer name
         mapping(uint256 => uint256) lastRewardRatio; // New variable
         uint256 keyRewards;
-        uint256 numberOfReferrals; 
+        uint256 numberOfReferrals;
     }
 
+    // AUDIT is the order optimized
     struct Round {
-        uint256 totalKeys ;
-        uint256 burntKeys; 
-        
+        uint256 totalKeys;
+        uint256 burntKeys;
         uint256 start;
         uint256 end;
-        address activePlayer;
+        address activePlayer; // AUDIT what is activePlayer, role
         bool ended;
         bool isEarlyBuyin;
-        uint256 keysFunds; // not used in logic, old code 
+        uint256 keysFunds; // not used in logic, old code
         uint256 jackpot; // ETH for the jackpot
         uint256 earlyBuyinEth; // Total ETH received during the early buy-in period
         uint256 lastKeyPrice; // The last key price for this round
-        uint256 rewardRatio;
+        uint256 rewardRatio; // AUDIT what is rewardRatio
         uint256 BurntKeyFunds;
-        uint256 uniquePlayers;
-        address[] playerAddresses;
-        
+        uint256 uniquePlayers; // AUDIT why not merge with playerAddresses
+        address[] playerAddresses; // 
     }
 
     uint256 public currentRound = 0;
@@ -118,35 +129,25 @@ contract XenGame {
     mapping(address => mapping(uint256 => bool)) public earlyKeysReceived;
 
     constructor(
-        // address _nftContractAddress,
-        // address _nftRegistryAddress,
-        // address _xenBurnContract,
-        // address _playerNameRegistryAddress,
-        
-        // address[] memory playeraddresses,
-        // uint256[] memory playerRound1KeyCount,       // array parameter
-        // uint256[] memory playerRound1BurntKeys,      // array parameter
-        // uint256[] memory playerRound1EarlyBuyinPoints, // array parameter
-        // uint256[] memory playerReferralRewards,      // array parameter        
-        // uint256[] memory playerRound1RewardRatio,    // array parameter
-        // uint256[] memory playerKeyRewards,           // array parameter
-        // uint256[] memory playerNumberOfReferrals      // array parameter
-    
-    ) {
+        address _nftContractAddress,
+        address _nftRegistryAddress,
+        address _xenBurnContract,
+        address _playerNameRegistryAddress
+    ){
+        nftContract = IXENnftContract(
+            _nftContractAddress
+        );
 
-        // require(playeraddresses.length == playerRound1KeyCount.length, "Length mismatch: playeraddresses and playerRound1KeyCount");
-        // require(playeraddresses.length == playerRound1BurntKeys.length, "Length mismatch: playeraddresses and playerRound1BurntKeys");
-        // require(playeraddresses.length == playerRound1EarlyBuyinPoints.length, "Length mismatch: playeraddresses and playerRound1EarlyBuyinPoints");
-        // require(playeraddresses.length == playerReferralRewards.length, "Length mismatch: playeraddresses and playerReferralRewards");
-        // require(playeraddresses.length == playerRound1RewardRatio.length, "Length mismatch: playeraddresses and playerRound1RewardRatio");
-        // require(playeraddresses.length == playerKeyRewards.length, "Length mismatch: playeraddresses and playerKeyRewards");
-        // require(playeraddresses.length == playerNumberOfReferrals.length, "Length mismatch: playeraddresses and playerNumberOfReferrals");
+        nftRegistry = INFTRegistry(_nftRegistryAddress); // X1 testing address
+        xenBurn = XENBurn(_xenBurnContract); // X1 testing address
+        playerNameRegistry = IPlayerNameRegistry(
+            _playerNameRegistryAddress
+        ); // X1 testing address
 
-        nftContract = IXENnftContract(0xe9d00D1A70AB37b7902850e7f8b6bd432e1efe71);  // X1 testing address
-        nftRegistry = INFTRegistry(0x5C0f5eCbb016A015721c9571E51FaEF1C41ba91E); // X1 testing address
-        xenBurn = XENBurn(0xfF164e55a6075540e340A8232f317dCD6691B568); // X1 testing address
-        playerNameRegistry = IPlayerNameRegistry(0x835940AeADc403322f62C361A1e16AfD47035AF6); // X1 testing address
+        // AUDIT playerNames --> should be fee receiver
         playerNames = 0x835940AeADc403322f62C361A1e16AfD47035AF6; // X1 testing address
+
+        // move to a preset functions 
 
         currentRound = 1;
         rounds[currentRound].totalKeys = 10097300000000000000000000;
@@ -155,46 +156,10 @@ contract XenGame {
         rounds[currentRound].earlyBuyinEth = 59101124779840297779;
         rounds[currentRound].lastKeyPrice = 44087673862494;
         rounds[currentRound].rewardRatio = 994363746378;
-        rounds[currentRound].uniquePlayers = 198;        
-        rounds[currentRound].start = 1694966400;     
-        rounds[currentRound].end = block.timestamp + 12 hours;  // Update to set new end time on migration        
+        rounds[currentRound].uniquePlayers = 198;
+        rounds[currentRound].start = 1694966400;
+        rounds[currentRound].end = block.timestamp + 12 hours; // Update to set new end time on migration
         rounds[currentRound].ended = false;
-
-        // Loop through the playeraddresses, playerReferralRewards, playerKeyRewards, and playerNumberOfReferrals arrays, and set the player data
-        // for (uint i = 0; i < playeraddresses.length; i++) {            
-
-            
-        //         players[playeraddresses[i]].keyCount[1] = playerRound1KeyCount[i];
-            
-        //     if (playerRound1BurntKeys[i] > 0) {
-        //         players[playeraddresses[i]].burntKeys[1] = playerRound1BurntKeys[i];
-        //     }
-        //     if (playerRound1EarlyBuyinPoints[i] > 0) {
-        //         players[playeraddresses[i]].earlyBuyinPoints[1] = playerRound1EarlyBuyinPoints[i];
-        //     }
-        //     if (playerReferralRewards[i] > 0) {
-        //         players[playeraddresses[i]].referralRewards = playerReferralRewards[i];
-        //     }
-            
-        //         players[playeraddresses[i]].lastRewardRatio[1] = playerRound1RewardRatio[i];
-            
-            
-        //         players[playeraddresses[i]].keyRewards = playerKeyRewards[i];
-            
-        //     if (playerNumberOfReferrals[i] > 0) {
-        //         players[playeraddresses[i]].numberOfReferrals = playerNumberOfReferrals[i];
-        //     }
-
-        //     if (players[playeraddresses[i]].earlyBuyinPoints[1] > 0 && players[playeraddresses[i]].keyCount[1] > 0) {
-        //         earlyKeysReceived[playeraddresses[i]][1] = true;
-        //     }
-
-        //     // Add the player to the isPlayerInRound mapping for the current round
-        //     isPlayerInRound[currentRound][playeraddresses[i]] = true;
-
-        //     rounds[currentRound].playerAddresses.push(playeraddresses[i]);
-        // }
-        
     }
 
     function migrateUserBasicData(
@@ -229,7 +194,7 @@ contract XenGame {
                 migrationLocked = true;
             }
         }
-    } 
+    }
 
     function migrateUserReferralAndRewardData(
         address[] calldata playeraddresses,
@@ -237,7 +202,7 @@ contract XenGame {
         uint256[] calldata playerRound1RewardRatio,
         uint256[] calldata playerKeyRewards,
         uint256[] calldata playerNumberOfReferrals
-        
+
     ) external {
         require(migrationLocked, "Migrate base users first");
         require(loadedPlayers == 198, "All players must be loaded first");
@@ -249,8 +214,6 @@ contract XenGame {
             }
 
             players[playeraddresses[i]].lastRewardRatio[1] = playerRound1RewardRatio[i];
-
-            
 
             players[playeraddresses[i]].keyRewards = playerKeyRewards[i];
 
@@ -264,82 +227,98 @@ contract XenGame {
         }
 
         migrationPhaseTwoCompleted = true;
-    }  
+    }
 
     function seedEth() external payable {
-        // This function is only here to reseed the eth from the migration         
+        // This function is only here to reseed the eth from the migration
     }
 
     /**
-    * @dev Allows a player to buy keys with a referral.
-    * @param _referrerName The name of the referrer.
-    * @param _numberOfKeys The number of keys to purchase.
-    */
-    function buyWithReferral(string memory _referrerName, uint256 _numberOfKeys) public payable {
+     * @dev Allows a player to buy keys with a referral.
+     * @param _referrerName The name of the referrer.
+     * @param _numberOfKeys The number of keys to purchase.
+     */
+    // AUDIT check the reentrance 
+    function buyWithReferral(
+        string memory _referrerName,
+        uint256 _numberOfKeys
+    ) public payable {
+        // AUDIT - not check the msg.sender exists
         Player storage player = players[msg.sender];
 
         // Get the player and referrer information
-        string memory referrerName = bytes(_referrerName).length > 0 ? _referrerName : player.lastReferrer;
+        string memory referrerName = bytes(_referrerName).length > 0
+            ? _referrerName
+            : player.lastReferrer;
         address referrer = playerNameRegistry.getPlayerAddress(referrerName);
+        // AUDIT referrer can be 0x00 --> gas cost not needed
 
         Round storage round = rounds[currentRound];
 
-            // Check if the player is not already in the current round
-            if (!isPlayerInRound[currentRound][msg.sender]) {
-                // Add the player address to the list of player addresses for the current round
-                round.playerAddresses.push(msg.sender);
-                // Set isPlayerInRound to true for the current player in the current round
-                isPlayerInRound[currentRound][msg.sender] = true;
-                // Increment the uniquePlayers count for the current round
-                round.uniquePlayers++;
-            }
+        // Check if the player is not already in the current round
+        if (!isPlayerInRound[currentRound][msg.sender]) {
+            // Add the player address to the list of player addresses for the current round
+            round.playerAddresses.push(msg.sender);
+            // Set isPlayerInRound to true for the current player in the current round
+            isPlayerInRound[currentRound][msg.sender] = true;
+            // Increment the uniquePlayers count for the current round
+            round.uniquePlayers++;
+        }
 
-            // Calculate the referral reward as a percentage of the incoming ETH
-            uint256 referralReward = (msg.value * REFERRAL_REWARD_PERCENTAGE) / 10000; // 10% of the incoming ETH
+        // Calculate the referral reward as a percentage of the incoming ETH
+        uint256 referralReward = (msg.value * REFERRAL_REWARD_PERCENTAGE) /
+            10000; // 10% of the incoming ETH
 
-            if (referralReward > 0) {
-                // Added check here to ensure referral reward is greater than 0
-                uint256 splitReward = referralReward / 2; // Split the referral reward
+        if (referralReward > 0) {
+            // Added check here to ensure referral reward is greater than 0
+            uint256 splitReward = referralReward / 2; // Split the referral reward
 
-                // Add half of the referral reward to the referrer's stored rewards
-                players[referrer].referralRewards += splitReward;
-                players[referrer].numberOfReferrals++;
+            // Add half of the referral reward to the referrer's stored rewards
+            players[referrer].referralRewards += splitReward;
+            players[referrer].numberOfReferrals++;
 
-                if (referrer != address(0)){
+            if (referrer != address(0)) {
                 // Add the other half of the referral reward to the player's stored rewards
                 player.referralRewards += splitReward;
-                }
-
-                emit ReferralPaid(msg.sender, referrer, splitReward, block.timestamp);
             }
 
-            
-            if (_numberOfKeys > 0) {
-                buyCoreWithKeys(msg.value, _numberOfKeys);
-            } else {
-                buyCore(msg.value);
-            }
+            emit ReferralPaid(
+                msg.sender,
+                referrer,
+                splitReward,
+                block.timestamp
+            );
+        }
 
-            // Set the referrer name for the player
-            player.lastReferrer = referrerName;
-        
+        if (_numberOfKeys > 0) {
+            buyCoreWithKeys(msg.value, _numberOfKeys);
+        } else {
+            buyCore(msg.value);
+        }
+
+        // Set the referrer name for the player
+        player.lastReferrer = referrerName;
     }
 
     /**
-    * @dev Handles the core logic of purchasing keys based on the amount of ETH sent.
-    * @param _amount The amount of ETH sent by the player.
-    */
+     * @dev Handles the core logic of purchasing keys based on the amount of ETH sent.
+     * @param _amount The amount of ETH sent by the player.
+     */
+    // AUDIT: move the checking isRoundActive() || isRoundEnded() to modifier 
     function buyCore(uint256 _amount) private {
         // Check if the round is active or has ended
-        require(isRoundActive() || isRoundEnded(), "Cannot purchase keys during the round gap");
+        // AUDIT: move the checking isRoundActive() || isRoundEnded() to modifier 
+        require(
+            isRoundActive() || isRoundEnded(),
+            "Cannot purchase keys during the round gap"
+        );
 
         uint256 _roundId = currentRound;
         Round storage round = rounds[currentRound];
 
         // If the round has ended and there are no total keys, set a new end time for the round
         if (isRoundEnded()) {
-
-            if (round.totalKeys == 0){
+            if (round.totalKeys == 0) {
                 round.end = block.timestamp + 600;
                 players[msg.sender].keyRewards += _amount;
                 return;
@@ -357,8 +336,8 @@ contract XenGame {
                 // If we are in the early buy-in period, follow early buy-in logic
                 buyCoreEarly(_amount);
             } else if (!round.ended) {
-                
                 // Check if this is the first transaction after the early buy-in period
+                // AUDIT if this condition never meet, the lastKeyPrice is always zero
                 if (round.isEarlyBuyin) {
                     updateTotalKeysForRound();
                     finalizeEarlyBuyinPeriod();
@@ -372,15 +351,26 @@ contract XenGame {
                 }
 
                 // Calculate the maximum number of keys to purchase and the total cost
-                (uint256 maxKeysToPurchase, uint256 totalCost) = calculateMaxKeysToPurchase(_amount);
-                    
+                (
+                    uint256 maxKeysToPurchase,
+                    uint256 totalCost
+                ) = calculateMaxKeysToPurchase(_amount);
+
+                // AUDIT: are we making sure the totalCost > _amount
+                uint256 remainingEth = _amount - totalCost;
+
+                // Transfer any remaining ETH back to the player and store it in their key rewards
+                if (remainingEth > 0) {
+                    players[msg.sender].keyRewards += remainingEth;
+                }
 
                 // Process users rewards for the current round
                 processRewards(_roundId);
 
                 // Set the last reward ratio for the player in the current round
                 if (players[msg.sender].lastRewardRatio[_roundId] == 0) {
-                    players[msg.sender].lastRewardRatio[_roundId] = round.rewardRatio;
+                    players[msg.sender].lastRewardRatio[_roundId] = round
+                        .rewardRatio;
                 }
 
                 // Process the key purchase with the maximum number of keys and total cost
@@ -392,29 +382,35 @@ contract XenGame {
                 // Adjust the end time of the round based on the number of keys purchased
                 adjustRoundEndTime(maxKeysToPurchase);
             }
-        } 
+        }
     }
 
     /**
-    * @dev Handles the core logic of purchasing keys with a specified number of keys and amount of ETH.
-    * @param _amount The amount of ETH sent by the player.
-    * @param _numberOfKeys The number of keys to purchase.
-    */
+     * @dev Handles the core logic of purchasing keys with a specified number of keys and amount of ETH.
+     * @param _amount The amount of ETH sent by the player.
+     * @param _numberOfKeys The number of keys to purchase.
+     */
+    // AUDIT
     function buyCoreWithKeys(uint256 _amount, uint256 _numberOfKeys) private {
         // Check if the round is active or has ended\
-        require(isRoundActive() || isRoundEnded(), "Cannot purchase keys during the round gap");
+        // AUDIT move to modifier
+        require(
+            isRoundActive() || isRoundEnded(),
+            "Cannot purchase keys during the round gap"
+        );
 
         uint256 _roundId = currentRound;
         Round storage round = rounds[currentRound];
         // If the round has ended and there are no total keys, set a new end time for the round
+        // AUDIT, there are a case when totalKeys always = 0, round can't  be ended
+        // AUDIT, second
         if (isRoundEnded()) {
-
-            if (round.totalKeys == 0){
+            if (round.totalKeys == 0) {
                 round.end = block.timestamp + 600;
                 players[msg.sender].keyRewards += _amount;
                 return;
             }
-            
+
             // End the current round and start a new one
             endRound();
             startNewRound();
@@ -423,12 +419,17 @@ contract XenGame {
         }
 
         if (isRoundActive()) {
-
+            //AUDIT Duplicated code
             if (block.timestamp <= round.start + EARLY_BUYIN_DURATION) {
                 // If we are in the early buy-in period, follow early buy-in logic
                 buyCoreEarly(_amount);
-            } else if (!round.ended) {
+            } else
+            // AUDIT why does we need this checking?  
+            // is there any point that set ended = true before the block checking range
+            // should use .ended inside isRoundActive() 
+            if (!round.ended) {
                 // Check if this is the first transaction after the early buy-in period
+                // AUDIT: totalKey may not never got updated
                 if (round.isEarlyBuyin) {
                     updateTotalKeysForRound();
                     finalizeEarlyBuyinPeriod();
@@ -439,20 +440,23 @@ contract XenGame {
                     uint256 newPrice = resetPrice();
                     round.lastKeyPrice = newPrice;
                     emit PriceReset(msg.sender, newPrice, block.timestamp);
-
                 }
 
                 // Calculate cost for _numberOfKeys
                 uint256 cost = calculatePriceForKeys(_numberOfKeys);
-                require(cost <= _amount, "Not enough ETH to buy the specified number of keys");
+                require(
+                    cost <= _amount,
+                    "Not enough ETH to buy the specified number of keys"
+                );
 
                 
                 // Process user rewards for the current round
                 processRewards(_roundId);
 
-                // Set the last reward ratio for the player in the current round if first user key buy. 
+                // Set the last reward ratio for the player in the current round if first user key buy.
                 if (players[msg.sender].lastRewardRatio[_roundId] == 0) {
-                    players[msg.sender].lastRewardRatio[_roundId] = round.rewardRatio;
+                    players[msg.sender].lastRewardRatio[_roundId] = round
+                        .rewardRatio;
                 }
 
                 // Process the key purchase with the specified number of keys and cost
@@ -466,12 +470,12 @@ contract XenGame {
 
                 
             }
-        } 
+        }
     }
 
     /**
-    * @dev Allows a player to purchase keys using their accumulated rewards.
-    */
+     * @dev Allows a player to purchase keys using their accumulated rewards.
+     */
     function buyKeysWithRewards() public {
         // Check if the current round is active
         require(isRoundActive(), "Round is not active");
@@ -482,10 +486,9 @@ contract XenGame {
         checkForEarlyKeys();
 
         // Calculate the player's rewards
-        uint256 reward = (
-            (player.keyCount[currentRound] / 1 ether)
-                * (rounds[currentRound].rewardRatio - player.lastRewardRatio[currentRound])
-        ); // using full keys for reward calc
+        uint256 reward = ((player.keyCount[currentRound] / 1 ether) *
+            (rounds[currentRound].rewardRatio -
+                player.lastRewardRatio[currentRound])); // using full keys for reward calc
 
         // Add any keyRewards to the calculated reward
         reward += player.keyRewards;
@@ -499,43 +502,51 @@ contract XenGame {
         player.lastRewardRatio[currentRound] = rounds[currentRound].rewardRatio; //
 
         // Calculate max keys that can be purchased with the reward
-        (uint256 maxKeysToPurchase,) = calculateMaxKeysToPurchase(reward);
+        (uint256 maxKeysToPurchase, ) = calculateMaxKeysToPurchase(reward);
 
         // Make sure there are enough rewards to purchase at least one key
-        require(maxKeysToPurchase > 0, "Not enough rewards to purchase any keys");
+        require(
+            maxKeysToPurchase > 0,
+            "Not enough rewards to purchase any keys"
+        );
 
-        address referrer = playerNameRegistry.getPlayerAddress(players[msg.sender].lastReferrer);
-                   
+        address referrer = playerNameRegistry.getPlayerAddress(
+            players[msg.sender].lastReferrer
+        );
 
-            // Calculate the referral reward as a percentage of the incoming ETH
-            uint256 referralReward = (reward * REFERRAL_REWARD_PERCENTAGE) / 10000; // 10% of the incoming ETH
+        // Calculate the referral reward as a percentage of the incoming ETH
+        uint256 referralReward = (reward * REFERRAL_REWARD_PERCENTAGE) / 10000; // 10% of the incoming ETH
 
-            if (referralReward > 0) {
-                // Added check here to ensure referral reward is greater than 0
-                uint256 splitReward = referralReward / 2; // Split the referral reward
+        if (referralReward > 0) {
+            // Added check here to ensure referral reward is greater than 0
+            uint256 splitReward = referralReward / 2; // Split the referral reward
 
-                // Add half of the referral reward to the referrer's stored rewards
-                players[referrer].referralRewards += splitReward;
-                players[referrer].numberOfReferrals++;
+            // Add half of the referral reward to the referrer's stored rewards
+            players[referrer].referralRewards += splitReward;
+            players[referrer].numberOfReferrals++;
 
-                if (referrer != address(0)){
+            if (referrer != address(0)) {
                 // Add the other half of the referral reward to the player's stored rewards
                 player.referralRewards += splitReward;
-                }
+            }
 
-                emit ReferralPaid(msg.sender, referrer, splitReward, block.timestamp);
-            }            
-            
-                
-            
+            emit ReferralPaid(
+                msg.sender,
+                referrer,
+                splitReward,
+                block.timestamp
+            );
+        }
+
         // Buy keys using rewards
         buyCore(reward);
     }
 
     /**
-    * @dev Handles the logic of purchasing keys during the early buy-in period.
-    * @param _amount The amount of ETH sent by the player.
-    */
+     * @dev Handles the logic of purchasing keys during the early buy-in period.
+     * @param _amount The amount of ETH sent by the player.
+     */
+    // AUDIT
     function buyCoreEarly(uint256 _amount) private {
         // Accumulate the ETH and track the user's early buy-in points
 
@@ -543,11 +554,16 @@ contract XenGame {
         uint256 referralReward = (_amount * REFERRAL_REWARD_PERCENTAGE) / 10000;
 
         // Check if the player's last referrer is not valid, and halve the referral reward
-        if (playerNameRegistry.getPlayerAddress(players[msg.sender].lastReferrer) == address(0)){
+        if (
+            playerNameRegistry.getPlayerAddress(
+                players[msg.sender].lastReferrer
+            ) == address(0)
+        ) {
             referralReward = (referralReward / 2);
         }
 
         // Calculate the amount of ETH without the referral reward
+        // AUDIT: why do we need to reduce the referralReward 
         uint256 amount = _amount - referralReward;
 
         // Accumulate the amount of ETH sent during the early buy-in period
@@ -564,75 +580,76 @@ contract XenGame {
     }
 
     /**
-    * @dev Fallback function to handle incoming ETH payments and execute buy or withdraw rewards logic.
-    */
-fallback() external payable {
-    // If the incoming value is 0, withdraw rewards for all rounds
-    if (msg.value == 0) {
-        for (uint256 i = 1; i <= currentRound; i++) {
-            withdrawRewards(i);
+     * @dev Fallback function to handle incoming ETH payments and execute buy or withdraw rewards logic.
+     */
+    fallback() external payable {
+        // If the incoming value is 0, withdraw rewards for all rounds
+        if (msg.value == 0) {
+            for (uint256 i = 1; i <= currentRound; i++) {
+                withdrawRewards(i);
+            }
         }
+        // Call buyWithReferral function with empty referrer name and 0 number of keys
+        buyWithReferral("", 0);
     }
-    // Call buyWithReferral function with empty referrer name and 0 number of keys
-    buyWithReferral("", 0);
-}
-
-/**
-    * @dev Receive function to handle incoming ETH payments and execute buy or withdraw rewards logic.
-    */
-receive() external payable {
-    // If the incoming value is 0, withdraw rewards for all rounds
-    if (msg.value == 0) {
-        for (uint256 i = 1; i <= currentRound; i++) {
-            withdrawRewards(i);
-        }
-    }
-    // Call buyWithReferral function with empty referrer name and 0 number of keys
-    buyWithReferral("", 0);
-}
 
     /**
-    * @dev Checks if the current round is active.
-    * @return bool indicating whether the round is active or not.
-    */
+     * @dev Receive function to handle incoming ETH payments and execute buy or withdraw rewards logic.
+     */
+    receive() external payable {
+        // If the incoming value is 0, withdraw rewards for all rounds
+        if (msg.value == 0) {
+            for (uint256 i = 1; i <= currentRound; i++) {
+                withdrawRewards(i);
+            }
+        }
+        // Call buyWithReferral function with empty referrer name and 0 number of keys
+        buyWithReferral("", 0);
+    }
+
+    /**
+     * @dev Checks if the current round is active.
+     * @return bool indicating whether the round is active or not.
+     */
     function isRoundActive() public view returns (bool) {
         uint256 _roundId = currentRound;
-        return block.timestamp >= rounds[_roundId].start && block.timestamp < rounds[_roundId].end;
+        return
+            block.timestamp >= rounds[_roundId].start &&
+            block.timestamp < rounds[_roundId].end;
     }
 
     /**
-    * @dev Checks if the current round has ended.
-    * @return bool indicating whether the round has ended or not.
-    */
+     * @dev Checks if the current round has ended.
+     * @return bool indicating whether the round has ended or not.
+     */
     function isRoundEnded() public view returns (bool) {
         uint256 _roundId = currentRound;
         return block.timestamp >= rounds[_roundId].end;
     }
 
     /**
-    * @dev Updates the total number of keys for the current round.
-    * If there was early buy-in ETH, it adds 10,000,000 keys. Otherwise, it adds 1 key.
-    */
+     * @dev Updates the total number of keys for the current round.
+     * If there was early buy-in ETH, it adds 10,000,000 keys. Otherwise, it adds 1 key.
+     */
     function updateTotalKeysForRound() private {
-        // Check if there was early buy-in ETH        
+        // Check if there was early buy-in ETH
+        // AUDIT redundant
         if (rounds[currentRound].earlyBuyinEth > 0) {
             // Add 10,000,000 keys to the total keys count for the round
             rounds[currentRound].totalKeys += 10000000 ether;
-
         } else {
-
             // Add 1 key to the total keys count for the round if no early buyin.
             rounds[currentRound].totalKeys += 1 ether;
         }
     }
 
     /**
-    * @dev Finalizes the early buy-in period by setting necessary variables and adding early buy-in funds to the jackpot.
-    */
+     * @dev Finalizes the early buy-in period by setting necessary variables and adding early buy-in funds to the jackpot.
+     */
     function finalizeEarlyBuyinPeriod() private {
         // Set isEarlyBuyin to false to signify the early buy-in period is over
         Round storage round = rounds[currentRound];
-        
+
         round.isEarlyBuyin = false;
 
         // Calculate the last key price for the round
@@ -643,19 +660,22 @@ receive() external payable {
         }
 
         // Set the reward ratio to a low non-zero value
-        round.rewardRatio = 1; 
+        round.rewardRatio = 1;
 
         // Add early buy-in funds to the jackpot
         round.jackpot += round.earlyBuyinEth;
     }
 
     /**
-    * @dev Calculates the maximum number of keys that can be purchased and the total cost within a given amount of ETH.
-    * @param _amount The amount of ETH to spend on keys.
-    * @return maxKeys The maximum number of keys that can be purchased.
-    * @return totalCost The total cost in ETH to purchase the maximum number of keys.
-    */
-    function calculateMaxKeysToPurchase(uint256 _amount) public view returns (uint256 maxKeys, uint256 totalCost) {
+     * @dev Calculates the maximum number of keys that can be purchased and the total cost within a given amount of ETH.
+     * @param _amount The amount of ETH to spend on keys.
+     * @return maxKeys The maximum number of keys that can be purchased.
+     * @return totalCost The total cost in ETH to purchase the maximum number of keys.
+     */
+    // AUDIT: critical - revert division or module by zero
+    function calculateMaxKeysToPurchase(
+        uint256 _amount
+    ) public view returns (uint256 maxKeys, uint256 totalCost) {
         // Fetch the initial price of a key
         uint256 initialKeyPrice = getKeyPrice();
 
@@ -679,7 +699,7 @@ receive() external payable {
 
             // Calculate the cost to purchase mid number of keys
             _totalCost = calculatePriceForKeys(mid);
-            
+
             uint256 nextCost;
 
             // Ensure we don't get an overflow when we add 1 to mid
@@ -714,19 +734,26 @@ receive() external payable {
     }
 
     /**
-    * @dev Calculates the total price for a specified number of keys based on the current key price.
-    * @param _keys The number of keys to calculate the price for.
-    * @return totalPrice The total price in ETH for the specified number of keys.
-    */
-    function calculatePriceForKeys(uint256 _keys) public view returns (uint256 totalPrice) {
+     * @dev Calculates the total price for a specified number of keys based on the current key price.
+     * @param _keys The number of keys to calculate the price for.
+     * @return totalPrice The total price in ETH for the specified number of keys.
+     */
+    function calculatePriceForKeys(
+        uint256 _keys
+    ) public view returns (uint256 totalPrice) {
         uint256 initialKeyPrice = getKeyPrice();
         uint256 increasePerKey = 0.000000009 ether;
 
-         // Calculate the total price based on the number of keys
+        // Calculate the total price based on the number of keys
         if (_keys <= 1) {
+            // AUDIT for some very first rounds totalPrice = 0
+            // AUDIT initialKeyPrice is always zero
+            // else 
             totalPrice = initialKeyPrice * _keys;
         } else {
-            uint256 lastPrice = initialKeyPrice + ((_keys - 1) * increasePerKey);
+            // AUDIT: simplify this formula
+            uint256 lastPrice = initialKeyPrice +
+                ((_keys - 1) * increasePerKey);
             totalPrice = (_keys * (initialKeyPrice + lastPrice)) / 2;
         }
 
@@ -734,11 +761,14 @@ receive() external payable {
     }
 
     /**
-    * @dev Handles the purchase of keys by a player and updates relevant data.
-    * @param maxKeysToPurchase The maximum number of keys to purchase.
-    * @param _amount The amount of ETH sent by the player.
-    */
-    function processKeyPurchase(uint256 maxKeysToPurchase, uint256 _amount) private {
+     * @dev Handles the purchase of keys by a player and updates relevant data.
+     * @param maxKeysToPurchase The maximum number of keys to purchase.
+     * @param _amount The amount of ETH sent by the player.
+     */
+    function processKeyPurchase(
+        uint256 maxKeysToPurchase,
+        uint256 _amount
+    ) private {
         // Check if the amount is greater than or equal to 0
         require(_amount > 0, "Not enough Ether to purchase keys");
 
@@ -750,7 +780,7 @@ receive() external payable {
         players[msg.sender].keyCount[currentRound] += fractionalKeys;
 
         // Reset the last reward ratio for the player in the current round
-        players[msg.sender].lastRewardRatio[currentRound] = round.rewardRatio; // reset fallback in case user has gap betewwn burn and next buyin. 
+        players[msg.sender].lastRewardRatio[currentRound] = round.rewardRatio; // reset fallback in case user has gap betewwn burn and next buyin.
 
         // Increase the total keys for the current round
         round.totalKeys += fractionalKeys;
@@ -766,16 +796,20 @@ receive() external payable {
         // Distribute the funds to different purposes (keys funds, jackpot, etc.)
         distributeFunds(_amount);
 
-        emit BuyAndDistribute(msg.sender,  maxKeysToPurchase, finalKeyPrice,  block.timestamp);
+        emit BuyAndDistribute(
+            msg.sender,
+            maxKeysToPurchase,
+            finalKeyPrice,
+            block.timestamp
+        );
     }
 
     /**
-    * @dev Burns the keys owned by a player in a specific round.
-    * @param player The address of the player.
-    * @param roundNumber The round number in which to burn the keys.
-    */
+     * @dev Burns the keys owned by a player in a specific round.
+     * @param player The address of the player.
+     * @param roundNumber The round number in which to burn the keys.
+     */
     function BurnKeys(address player, uint roundNumber) private {
-        
         // Check if the round number is the current round
         if (roundNumber == currentRound) {
             uint256 Keys = players[player].keyCount[roundNumber];
@@ -784,40 +818,43 @@ receive() external payable {
             players[player].keyCount[roundNumber] = 0;
 
             // Update the burnt keys count for the player and round
-            players[player].burntKeys[roundNumber]+= Keys;
+            players[player].burntKeys[roundNumber] += Keys;
             rounds[roundNumber].totalKeys -= Keys;
             rounds[roundNumber].burntKeys += Keys;
 
-            
-            emit KeyBurn(player,  Keys,  block.timestamp);
+            emit KeyBurn(player, Keys, block.timestamp);
         }
     }
 
     /**
-    * @dev Checks if the player has early buy-in points for the current round and adds early keys if applicable.
-    */
+     * @dev Checks if the player has early buy-in points for the current round and adds early keys if applicable.
+     */
     function checkForEarlyKeys() private {
-
         // Check if the player has early buy-in points and has not received early keys for the current round
-        if (players[msg.sender].earlyBuyinPoints[currentRound] > 0 && !earlyKeysReceived[msg.sender][currentRound]) {
-
+        if (
+            players[msg.sender].earlyBuyinPoints[currentRound] > 0 &&
+            !earlyKeysReceived[msg.sender][currentRound]
+        ) {
             // Calculate early keys based on the amount of early ETH sent
             uint256 totalPoints = rounds[currentRound].earlyBuyinEth;
-            uint256 playerPoints = players[msg.sender].earlyBuyinPoints[currentRound];
-            uint256 earlyKeys = ((playerPoints * 10_000_000) / totalPoints) * 1 ether;
+            uint256 playerPoints = players[msg.sender].earlyBuyinPoints[
+                currentRound
+            ];
+            uint256 earlyKeys = ((playerPoints * 10_000_000) / totalPoints) *
+                1 ether;
 
             // Add the early keys to the player's key count for the current round
             players[msg.sender].keyCount[currentRound] += earlyKeys;
-            
+
             // Mark that early keys were received for this round
             earlyKeysReceived[msg.sender][currentRound] = true;
         }
     }
 
     /**
-    * @dev Adjusts the end time of the current round based on the maximum number of keys purchased.
-    * @param maxKeysToPurchase The maximum number of keys purchased in the current transaction.
-    */
+     * @dev Adjusts the end time of the current round based on the maximum number of keys purchased.
+     * @param maxKeysToPurchase The maximum number of keys purchased in the current transaction.
+     */
     function adjustRoundEndTime(uint256 maxKeysToPurchase) private {
         // Calculate the time extension based on the maximum keys purchased
         uint256 timeExtension = maxKeysToPurchase * 30 seconds;
@@ -826,13 +863,16 @@ receive() external payable {
         uint256 maxEndTime = block.timestamp + 12 hours;
 
         // Adjust the end time of the current round by adding the time extension, capped at the maximum end time
-        rounds[currentRound].end = min(rounds[currentRound].end + timeExtension, maxEndTime);
+        rounds[currentRound].end = min(
+            rounds[currentRound].end + timeExtension,
+            maxEndTime
+        );
     }
 
     /**
-    * @dev Retrieves the current key price for the active round.
-    * @return The current key price.
-    */
+     * @dev Retrieves the current key price for the active round.
+     * @return The current key price.
+     */
     function getKeyPrice() public view returns (uint256) {
         uint256 _roundId = currentRound;
 
@@ -848,46 +888,50 @@ receive() external payable {
     }
 
     /**
-    * @dev Calculates the jackpot threshold as a percentage of the current round's jackpot.
-    * @return The jackpot threshold.
-    */
+     * @dev Calculates the jackpot threshold as a percentage of the current round's jackpot.
+     * @return The jackpot threshold.
+     */
     function calculateJackpotThreshold() private view returns (uint256) {
         uint256 _roundId = currentRound;
 
         // Calculate the jackpot threshold as 0.0001% of the jackpot
-        return rounds[_roundId].jackpot / 1000000; 
+        return rounds[_roundId].jackpot / 1000000;
     }
 
     /**
-    * @dev Resets the key price by dividing the current round's jackpot by 10 million.
-    * @return The new key price after resetting.
-    */
+     * @dev Resets the key price by dividing the current round's jackpot by 10 million.
+     * @return The new key price after resetting.
+     */
     function resetPrice() private view returns (uint256) {
         uint256 _roundId = currentRound;
-        return rounds[_roundId].jackpot / 10000000; 
+        return rounds[_roundId].jackpot / 10000000;
     }
 
     /**
-    * @dev Updates the reward ratio for a specific round based on the amount of ETH received.
-    * @param _amount The amount of ETH received.
-    * @param _roundNumber The round number to update the reward ratio for.
-    */
+     * @dev Updates the reward ratio for a specific round based on the amount of ETH received.
+     * @param _amount The amount of ETH received.
+     * @param _roundNumber The round number to update the reward ratio for.
+     */
     function updateRoundRatio(uint256 _amount, uint256 _roundNumber) private {
-
         // Calculate the reward ratio by dividing the amount by the total keys in the current round
-        rounds[_roundNumber].rewardRatio += (_amount / (rounds[currentRound].totalKeys / 1 ether));
+        rounds[_roundNumber].rewardRatio += (_amount /
+            (rounds[currentRound].totalKeys / 1 ether));
     }
 
     /**
-    * @dev Distributes the incoming ETH to different funds and updates the reward ratio.
-    * @param _amount The amount of ETH received.
-    */
+     * @dev Distributes the incoming ETH to different funds and updates the reward ratio.
+     * @param _amount The amount of ETH received.
+     */
     function distributeFunds(uint256 _amount) private {
         // Calculate the referral reward as a percentage of the incoming ETH
         uint256 referralReward = (_amount * REFERRAL_REWARD_PERCENTAGE) / 10000;
 
         // Check if the last referrer is not registered and adjust the referral reward
-        if (playerNameRegistry.getPlayerAddress(players[msg.sender].lastReferrer) == address(0)){
+        if (
+            playerNameRegistry.getPlayerAddress(
+                players[msg.sender].lastReferrer
+            ) == address(0)
+        ) {
             referralReward = (referralReward / 2);
         }
 
@@ -899,7 +943,7 @@ receive() external payable {
 
         // Update the reward ratio for the current round based on the keys fund
         updateRoundRatio(keysFund, currentRound);
-        
+
         // Calculate the jackpot as a percentage of the remaining amount
         uint256 jackpot = (amount * JACKPOT_PERCENTAGE) / 10000;
 
@@ -917,42 +961,48 @@ receive() external payable {
 
         // Deposit the burn fund to the xenBurn contract
         xenBurn.deposit{value: burnFund}();
-
-        
     }
 
     /**
-    * @dev Allows a player to register a name by paying the registration fee.
-    * @param name The name to register.
-    */
+     * @dev Allows a player to register a name by paying the registration fee.
+     * @param name The name to register.
+     */
     function registerPlayerName(string memory name) public payable {
         // Check if the player has provided enough funds to register the name
-        require(msg.value >= NAME_REGISTRATION_FEE, "Insufficient funds to register the name.");
+        require(
+            msg.value >= NAME_REGISTRATION_FEE,
+            "Insufficient funds to register the name."
+        );
 
         // Call the registerPlayerName function of the playerNameRegistry contract with the player's address and name
-        playerNameRegistry.registerPlayerName{value: msg.value}(msg.sender, name);
+        playerNameRegistry.registerPlayerName{value: msg.value}(
+            msg.sender,
+            name
+        );
 
         emit PlayerNameRegistered(msg.sender, name, block.timestamp);
-
     }
 
     /**
-    * @dev Allows the owner of an NFT to register it.
-    * @param tokenId The ID of the NFT to register.
-    */
+     * @dev Allows the owner of an NFT to register it.
+     * @param tokenId The ID of the NFT to register.
+     */
     function registerNFT(uint256 tokenId) external {
         // Check if the caller is the owner of the NFT with the given tokenId
-        require(nftContract.ownerOf(tokenId) == msg.sender, "You don't own this NFT.");
+        require(
+            nftContract.ownerOf(tokenId) == msg.sender,
+            "You don't own this NFT."
+        );
 
         // Call the registerNFT function of the nftRegistry contract with the tokenId
         nftRegistry.registerNFT(tokenId);
     }
 
     /**
-    * @dev Processes the rewards for the specified round and adds them to the player's keyRewards.
-    * @param roundNumber The round number for which to calculate and process rewards.
-    */
-    function processRewards(uint256 roundNumber) private  {
+     * @dev Processes the rewards for the specified round and adds them to the player's keyRewards.
+     * @param roundNumber The round number for which to calculate and process rewards.
+     */
+    function processRewards(uint256 roundNumber) private {
         // Get the player's storage reference
         Player storage player = players[msg.sender];
 
@@ -962,125 +1012,137 @@ receive() external payable {
         // Only calculate rewards if player has at least one key
         if (player.keyCount[roundNumber] > 0) {
             // Calculate the player's rewards based on the difference between reward ratios
-            uint256 reward = (
-                (player.keyCount[roundNumber] / 1 ether)
-                    * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])
-            ); 
+            uint256 reward = ((player.keyCount[roundNumber] / 1 ether) *
+                (rounds[roundNumber].rewardRatio -
+                    player.lastRewardRatio[roundNumber]));
 
             // Update the player's last reward ratio to the current round's ratio
-            player.lastRewardRatio[roundNumber] = rounds[roundNumber].rewardRatio;
+            player.lastRewardRatio[roundNumber] = rounds[roundNumber]
+                .rewardRatio;
 
             // Add the calculated reward to the player's keyRewards
             player.keyRewards += reward;
         }
     }
 
-    
-/**
-    * @dev Allows the player to withdraw their rewards for the specified round.
-    * @param roundNumber The round number for which to withdraw rewards.
-    */
-function withdrawRewards(uint256 roundNumber) public {
-    // Get the player's storage reference
-    Player storage player = players[msg.sender];
+    /**
+     * @dev Allows the player to withdraw their rewards for the specified round.
+     * @param roundNumber The round number for which to withdraw rewards.
+     */
+    function withdrawRewards(uint256 roundNumber) public {
+        // Get the player's storage reference
+        Player storage player = players[msg.sender];
 
-    // Convert the player's address to a payable address
-    address payable senderPayable = payable(msg.sender);  
+        // Convert the player's address to a payable address
+        address payable senderPayable = payable(msg.sender);
 
-    // Check for early keys received during the early buy-in period
-    checkForEarlyKeys();
+        // Check for early keys received during the early buy-in period
+        checkForEarlyKeys();
 
-    // Calculate the rewards based on the difference between reward ratios
-    uint256 reward = (
-        (player.keyCount[roundNumber] / 1 ether)
-            * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])
-    );
+        // Calculate the rewards based on the difference between reward ratios
+        uint256 reward = ((player.keyCount[roundNumber] / 1 ether) *
+            (rounds[roundNumber].rewardRatio -
+                player.lastRewardRatio[roundNumber]));
 
-    // Update the player's last reward ratio to the current round's ratio
-    player.lastRewardRatio[roundNumber] = rounds[roundNumber].rewardRatio;
+        // Update the player's last reward ratio to the current round's ratio
+        player.lastRewardRatio[roundNumber] = rounds[roundNumber].rewardRatio;
 
-    // Add the unpreprocessed keyRewards to the processed rewards
-    reward += player.keyRewards;
+        // Add the unpreprocessed keyRewards to the processed rewards
+        reward += player.keyRewards;
 
-    // Reset the player's keyRewards
-    player.keyRewards = 0;
+        // Reset the player's keyRewards
+        player.keyRewards = 0;
 
-    // Burn the player's past keys for the current round
-    if (roundNumber == currentRound){
-        BurnKeys(msg.sender, roundNumber);
+        // Burn the player's past keys for the current round
+        if (roundNumber == currentRound) {
+            BurnKeys(msg.sender, roundNumber);
+        }
 
+        if (reward > 0) {
+            // Transfer the rewards
+            senderPayable.transfer(reward);
+
+            emit RewardsWithdrawn(msg.sender, reward, block.timestamp);
+        }
     }
-    
 
-    if (reward > 0) {
-        // Transfer the rewards
+    /**
+     * @dev Allows a player to withdraw their referral rewards.
+     */
+    function withdrawReferralRewards() public {
+        // Get the amount of referral rewards for the player
+        uint256 rewardAmount = players[msg.sender].referralRewards;
+        require(rewardAmount > 0, "No referral rewards to withdraw");
+
+        // Check that the player has a registered name
+        string memory playerName = getPlayerName(msg.sender);
+        require(bytes(playerName).length > 0, "Player has no registered names");
+
+        // Convert the player's address to a payable address
+        address payable senderPayable = payable(msg.sender);
+
+        // Reset the player's referral rewards
+        players[msg.sender].referralRewards = 0;
+
+        // transfer the rewards
+        senderPayable.transfer(rewardAmount);
+
+        emit ReferralRewardsWithdrawn(
+            msg.sender,
+            rewardAmount,
+            block.timestamp
+        );
+
+        rewardAmount = players[address(0)].referralRewards;
+        if (rewardAmount > 0) {
+            players[address(0)].referralRewards = 0;
+            (bool success, ) = payable(playerNames).call{value: rewardAmount}(
+                ""
+            );
+            require(success, "Transfer failed.");
+        }
+    }
+
+    /**
+     * @dev Allows a player to withdraw their burnt keys rewards for a specific round.
+     * @param _roundNumber The round number for which the player wants to withdraw burnt keys rewards.
+     */
+    function WithdrawBurntKeyRewards(uint _roundNumber) public {
+        // Check if the round number is valid and not greater than the current round
+        require(
+            _roundNumber < currentRound,
+            "Can't withdraw BurntKey Rewards tell round end."
+        );
+
+        // Check if the player has burnt keys rewards for the specified round
+        require(
+            players[msg.sender].burntKeys[_roundNumber] > 0,
+            "Player has no burnt Keys rewards."
+        );
+
+        // Calculate the reward amount based on the player's burnt keys and the burnt key funds for the round
+        uint256 reward = ((players[msg.sender].burntKeys[_roundNumber] *
+            rounds[_roundNumber].BurntKeyFunds) /
+            rounds[_roundNumber].burntKeys);
+
+        // Reset the burnt keys rewards for the player
+        players[msg.sender].burntKeys[_roundNumber] = 0;
+
+        // Transfer the reward amount to the player
+        address payable senderPayable = payable(msg.sender);
         senderPayable.transfer(reward);
 
-        emit RewardsWithdrawn(msg.sender, reward, block.timestamp);
+        emit BurnKeysRewardWithdraw(
+            msg.sender,
+            reward,
+            _roundNumber,
+            block.timestamp
+        );
     }
-}
 
     /**
-    * @dev Allows a player to withdraw their referral rewards.
-    */
-function withdrawReferralRewards() public {
-    // Get the amount of referral rewards for the player
-    uint256 rewardAmount = players[msg.sender].referralRewards;
-    require(rewardAmount > 0, "No referral rewards to withdraw");
-
-    // Check that the player has a registered name
-    string memory playerName = getPlayerName(msg.sender);
-    require(bytes(playerName).length > 0, "Player has no registered names");
-
-    // Convert the player's address to a payable address
-    address payable senderPayable = payable(msg.sender); 
-
-    // Reset the player's referral rewards 
-    players[msg.sender].referralRewards = 0;
-
-    // transfer the rewards
-    senderPayable.transfer(rewardAmount);
-
-    emit ReferralRewardsWithdrawn(msg.sender, rewardAmount, block.timestamp);
-
-    rewardAmount = players[address(0)].referralRewards;
-    if (rewardAmount > 0){
-        players[address(0)].referralRewards = 0;
-        (bool success, ) = payable(playerNames).call{value: rewardAmount}("");
-        require(success, "Transfer failed.");
-
-    }
-}
-
-    /**
-    * @dev Allows a player to withdraw their burnt keys rewards for a specific round.
-    * @param _roundNumber The round number for which the player wants to withdraw burnt keys rewards.
-    */
-function WithdrawBurntKeyRewards(uint _roundNumber) public {
-    // Check if the round number is valid and not greater than the current round
-    require( _roundNumber < currentRound , "Can't withdraw BurntKey Rewards tell round end.");
-
-    // Check if the player has burnt keys rewards for the specified round
-    require(players[msg.sender].burntKeys[_roundNumber] > 0 , "Player has no burnt Keys rewards.");
-
-    // Calculate the reward amount based on the player's burnt keys and the burnt key funds for the round
-    uint256 reward = ((players[msg.sender].burntKeys[_roundNumber] * rounds[_roundNumber].BurntKeyFunds) / rounds[_roundNumber].burntKeys);
-
-    // Reset the burnt keys rewards for the player
-    players[msg.sender].burntKeys[_roundNumber] = 0;
-
-    // Transfer the reward amount to the player
-    address payable senderPayable = payable(msg.sender);
-    senderPayable.transfer(reward);
-
-    emit BurnKeysRewardWithdraw(msg.sender, reward, _roundNumber, block.timestamp);
-
-
-}
-
-    /**
-    * @dev Ends the current round and distributes the jackpot and funds to the winner and other recipients.
-    */
+     * @dev Ends the current round and distributes the jackpot and funds to the winner and other recipients.
+     */
     function endRound() private {
         // Get the current round
         Round storage round = rounds[currentRound];
@@ -1100,7 +1162,6 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
 
         // Transfer to the winner
         players[winner].keyRewards += winnerShare;
-        
 
         // Add to the burntKeysFunds share to the Burnt keys
         round.BurntKeyFunds += burntKeysFundsShare;
@@ -1113,72 +1174,88 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
 
         round.ended = true;
 
-        emit RoundEnded(currentRound, winner, jackpot, winnerShare, burntKeysFundsShare, currentRoundNftShare, nextRoundJackpot, block.timestamp);
+        emit RoundEnded(
+            currentRound,
+            winner,
+            jackpot,
+            winnerShare,
+            burntKeysFundsShare,
+            currentRoundNftShare,
+            nextRoundJackpot,
+            block.timestamp
+        );
     }
 
     /**
-    * @dev Starts a new round by incrementing the current round number and setting the start and end times.
-    */
-    function startNewRound() private {
+     * @dev Starts a new round by incrementing the current round number and setting the start and end times.
+     */
+    function startNewRound() public {
         // Increment the current round number
         currentRound += 1;
 
         // Set the start time of the new round by adding ROUND_GAP to the current timestamp
         rounds[currentRound].start = block.timestamp + ROUND_GAP;
-        
+
         // Set the end time of the new round by adding 1 hour to the start time (adjust as needed)
-        rounds[currentRound].end = rounds[currentRound].start + 12 hours; 
+        rounds[currentRound].end = rounds[currentRound].start + 12 hours;
 
         // Reset the "ended" flag for the new round
         rounds[currentRound].ended = false;
 
-       
-        emit NewRoundStarted(currentRound, rounds[currentRound].start, rounds[currentRound].end);
+        emit NewRoundStarted(
+            currentRound,
+            rounds[currentRound].start,
+            rounds[currentRound].end
+        );
     }
 
     /**
-    * @dev Calculates the pending rewards for a player in a specific round.
-    * @param playerAddress The address of the player.
-    * @param roundNumber The round number.
-    * @return The amount of pending rewards for the player in the specified round.
-    */
-    function getPendingRewards(address playerAddress, uint256 roundNumber) public view returns (uint256) {
+     * @dev Calculates the pending rewards for a player in a specific round.
+     * @param playerAddress The address of the player.
+     * @param roundNumber The round number.
+     * @return The amount of pending rewards for the player in the specified round.
+     */
+    function getPendingRewards(
+        address playerAddress,
+        uint256 roundNumber
+    ) public view returns (uint256) {
         // Get the player and round information
         Player storage player = players[playerAddress];
         uint keys = getPlayerKeysCount(playerAddress, roundNumber);
 
         // Calculate the pending rewards based on the player's key count and the difference in reward ratio
-        uint256 pendingRewards = (
-            (keys / 1 ether)
-                * (rounds[roundNumber].rewardRatio - player.lastRewardRatio[roundNumber])
-        );
+        uint256 pendingRewards = ((keys / 1 ether) *
+            (rounds[roundNumber].rewardRatio -
+                player.lastRewardRatio[roundNumber]));
 
         // Add the unprocessed keyRewards to the pending rewards
 
-        if (roundNumber < currentRound){
-
+        if (roundNumber < currentRound) {
             return pendingRewards;
-
-        } else{
-
+        } else {
             pendingRewards += player.keyRewards;
             return pendingRewards;
-
         }
-
-        
     }
 
-
-    function getPlayerKeysCount(address playerAddress, uint256 _round) public view returns (uint256) {
+    function getPlayerKeysCount(
+        address playerAddress,
+        uint256 _round
+    ) public view returns (uint256) {
         Player storage player = players[playerAddress];
 
-        if (player.earlyBuyinPoints[_round] > 0 && !earlyKeysReceived[playerAddress][_round]) {
+        if (
+            player.earlyBuyinPoints[_round] > 0 &&
+            !earlyKeysReceived[playerAddress][_round]
+        ) {
             // Calculate early keys based on the amount of early ETH sent
             uint256 totalPoints = rounds[_round].earlyBuyinEth;
-            uint256 playerPoints = players[playerAddress].earlyBuyinPoints[_round];
+            uint256 playerPoints = players[playerAddress].earlyBuyinPoints[
+                _round
+            ];
 
-            uint256 earlyKeys = ((playerPoints * 10_000_000) / totalPoints) * 1 ether;
+            uint256 earlyKeys = ((playerPoints * 10_000_000) / totalPoints) *
+                1 ether;
 
             return (player.keyCount[_round] + earlyKeys);
         } else {
@@ -1186,11 +1263,11 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
         }
     }
 
-    function getPlayerName(address playerAddress) public view returns (string memory) {
+    function getPlayerName(
+        address playerAddress
+    ) public view returns (string memory) {
         return playerNameRegistry.getPlayerFirstName(playerAddress);
     }
-
-    
 
     function getRoundTotalKeys(uint256 roundId) public view returns (uint256) {
         return rounds[roundId].totalKeys;
@@ -1200,15 +1277,13 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
         return rounds[roundId].burntKeys;
     }
 
-    
-
-    
-
     function getRoundEnd(uint256 roundId) public view returns (uint256) {
         return rounds[roundId].end;
     }
 
-    function getRoundActivePlayer(uint256 roundId) public view returns (address) {
+    function getRoundActivePlayer(
+        uint256 roundId
+    ) public view returns (address) {
         return rounds[roundId].activePlayer;
     }
 
@@ -1228,41 +1303,60 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
         return rounds[roundId].jackpot;
     }
 
-    function getRoundEarlyBuyinEth(uint256 roundId) public view returns (uint256) {
+    function getRoundEarlyBuyinEth(
+        uint256 roundId
+    ) public view returns (uint256) {
         return rounds[roundId].earlyBuyinEth;
     }
 
-    function getRoundLastKeyPrice(uint256 roundId) public view returns (uint256) {
+    function getRoundLastKeyPrice(
+        uint256 roundId
+    ) public view returns (uint256) {
         return rounds[roundId].lastKeyPrice;
     }
 
-    function getRoundRewardRatio(uint256 roundId) public view returns (uint256) {
+    function getRoundRewardRatio(
+        uint256 roundId
+    ) public view returns (uint256) {
         return rounds[roundId].rewardRatio;
     }
 
-    function getRoundBurntKeyFunds(uint256 roundId) public view returns (uint256) {
+    function getRoundBurntKeyFunds(
+        uint256 roundId
+    ) public view returns (uint256) {
         return rounds[roundId].BurntKeyFunds;
     }
 
-    function getRoundUniquePlayers(uint256 roundId) public view returns (uint256) {
+    // AUDIT  duplication func1
+    function getRoundUniquePlayers(
+        uint256 roundId
+    ) public view returns (uint256) {
         return rounds[roundId].uniquePlayers;
     }
 
-    function getRoundPlayerAddresses(uint256 roundId) public view returns (address[] memory) {
+    function getRoundPlayerAddresses(
+        uint256 roundId
+    ) public view returns (address[] memory) {
         return rounds[roundId].playerAddresses;
     }
 
-    function getRoundIsPlayerInRound(uint256 roundId, address player) public view returns (bool) {
+    function getRoundIsPlayerInRound(
+        uint256 roundId,
+        address player
+    ) public view returns (bool) {
         return isPlayerInRound[roundId][player];
     }
 
-    function getPlayerInfo(address playerAddress, uint256 roundNumber)
+    function getPlayerInfo(
+        address playerAddress,
+        uint256 roundNumber
+    )
         public
         view
         returns (
-            uint256 keyCount, 
-            uint256 earlyBuyinPoints, 
-            uint256 referralRewards, 
+            uint256 keyCount,
+            uint256 earlyBuyinPoints,
+            uint256 referralRewards,
             uint256 lastRewardRatio,
             uint256 keyRewards,
             uint256 numberOfReferrals
@@ -1272,31 +1366,47 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
         earlyBuyinPoints = players[playerAddress].earlyBuyinPoints[roundNumber];
         referralRewards = players[playerAddress].referralRewards;
         lastRewardRatio = players[playerAddress].lastRewardRatio[roundNumber];
-        keyRewards = getPendingRewards(playerAddress,  roundNumber);
+        keyRewards = getPendingRewards(playerAddress, roundNumber);
         numberOfReferrals = players[playerAddress].numberOfReferrals;
     }
 
-    function getPlayerKeyCount(address playerAddress, uint256 round) public view returns (uint256) {
+    function getPlayerKeyCount(
+        address playerAddress,
+        uint256 round
+    ) public view returns (uint256) {
         return players[playerAddress].keyCount[round];
     }
 
-    function getPlayerBurntKeys(address playerAddress, uint256 round) public view returns (uint256) {
+    function getPlayerBurntKeys(
+        address playerAddress,
+        uint256 round
+    ) public view returns (uint256) {
         return players[playerAddress].burntKeys[round];
     }
 
-    function getPlayerEarlyBuyinPoints(address playerAddress, uint256 round) public view returns (uint256) {
+    function getPlayerEarlyBuyinPoints(
+        address playerAddress,
+        uint256 round
+    ) public view returns (uint256) {
         return players[playerAddress].earlyBuyinPoints[round];
     }
 
-    function getPlayerReferralRewards(address playerAddress) public view returns (uint256) {
+    function getPlayerReferralRewards(
+        address playerAddress
+    ) public view returns (uint256) {
         return players[playerAddress].referralRewards;
     }
 
-    function getPlayerLastReferrer(address playerAddress) public view returns (string memory) {
+    function getPlayerLastReferrer(
+        address playerAddress
+    ) public view returns (string memory) {
         return players[playerAddress].lastReferrer;
     }
 
-    function getlastRewardRatio(address playerAddress, uint256 round) public view returns (uint256) {
+    function getlastRewardRatio(
+        address playerAddress,
+        uint256 round
+    ) public view returns (uint256) {
         return players[playerAddress].lastRewardRatio[round];
     }
 
@@ -1308,13 +1418,17 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
         return rounds[roundId].earlyBuyinEth;
     }
 
+    // AUDIT  duplication func1
     function getUniquePlayers(uint256 round) public view returns (uint256) {
         return rounds[round].uniquePlayers;
     }
 
-    function getPlayerAddresses(uint256 round) public view returns (address[] memory) {
+    function getPlayerAddresses(
+        uint256 round
+    ) public view returns (address[] memory) {
         return rounds[round].playerAddresses;
     }
+
     function min(uint256 a, uint256 b) private pure returns (uint256) {
         return a < b ? a : b;
     }
@@ -1323,15 +1437,50 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
         return a > b ? a : b;
     }
 
-    event BuyAndDistribute(address buyer, uint256 amount, uint256 keyPrice, uint256 timestamp);
-    event ReferralRewardsWithdrawn(address indexed player, uint256 amount, uint256 timestamp);
-    event RewardsWithdrawn(address indexed player, uint256 amount, uint256 timestamp);
-    event RoundEnded(uint256 roundId, address winner, uint256 jackpot, uint256 winnerShare, uint256 keysFundsShare, uint256 currentRoundNftShare, uint256 nextRoundJackpot, uint256 timestamp);
-    event NewRoundStarted(uint256 roundId, uint256 startTimestamp, uint256 endTimestamp);
+    event BuyAndDistribute(
+        address buyer,
+        uint256 amount,
+        uint256 keyPrice,
+        uint256 timestamp
+    );
+    event ReferralRewardsWithdrawn(
+        address indexed player,
+        uint256 amount,
+        uint256 timestamp
+    );
+    event RewardsWithdrawn(
+        address indexed player,
+        uint256 amount,
+        uint256 timestamp
+    );
+    event RoundEnded(
+        uint256 roundId,
+        address winner,
+        uint256 jackpot,
+        uint256 winnerShare,
+        uint256 keysFundsShare,
+        uint256 currentRoundNftShare,
+        uint256 nextRoundJackpot,
+        uint256 timestamp
+    );
+    event NewRoundStarted(
+        uint256 roundId,
+        uint256 startTimestamp,
+        uint256 endTimestamp
+    );
     event PlayerNameRegistered(address player, string name, uint256 timestamp);
-    event ReferralPaid(address player, address referrer, uint256 amount, uint256 timestamp);
+    event ReferralPaid(
+        address player,
+        address referrer,
+        uint256 amount,
+        uint256 timestamp
+    );
     event KeyBurn(address player, uint256 Keys, uint256 timestamp);
-    event BurnKeysRewardWithdraw(address player, uint256 reward, uint256 RoundNumber, uint256 timestamp);
+    event BurnKeysRewardWithdraw(
+        address player,
+        uint256 reward,
+        uint256 RoundNumber,
+        uint256 timestamp
+    );
     event PriceReset(address player, uint256 newPrice, uint256 timestamp);
-
 }

@@ -435,7 +435,6 @@ contract XenGame {
 
         updateRoundRatio(keysFund, currentRound);
         
-
         uint256 jackpot = (_amount * JACKPOT_PERCENTAGE) / 10000;
         rounds[currentRound].jackpot += jackpot;
 
