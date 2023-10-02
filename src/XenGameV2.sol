@@ -846,8 +846,15 @@ receive() external payable {
     function getKeyPrice() public view returns (uint256) {
         uint256 _roundId = currentRound;
 
-        // Use the last key price set for this round, whether it's from the Early Buy-in period or elsewhere
-        return rounds[_roundId].lastKeyPrice;
+        // Fetch the last key price
+        uint256 lastKeyPrice = rounds[_roundId].lastKeyPrice;
+
+        // If the price is 0, return 0.000000009 ether, else return the last set price
+        if(lastKeyPrice == 0) {
+            return 0.000000009 ether;
+        } else {
+            return lastKeyPrice;
+        }
     }
 
     /**
