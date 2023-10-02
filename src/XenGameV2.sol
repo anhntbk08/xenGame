@@ -373,12 +373,7 @@ contract XenGame {
 
                 // Calculate the maximum number of keys to purchase and the total cost
                 (uint256 maxKeysToPurchase, uint256 totalCost) = calculateMaxKeysToPurchase(_amount);
-                    uint256 remainingEth = _amount - totalCost;
-
-                // Transfer any remaining ETH back to the player and store it in their key rewards
-                if (remainingEth > 0) {
-                    players[msg.sender].keyRewards += remainingEth;
-                }
+                    
 
                 // Process users rewards for the current round
                 processRewards(_roundId);
@@ -451,9 +446,7 @@ contract XenGame {
                 uint256 cost = calculatePriceForKeys(_numberOfKeys);
                 require(cost <= _amount, "Not enough ETH to buy the specified number of keys");
 
-                // Calculate the remaining ETH after the key purchase
-                //uint256 remainingEth = _amount - cost;
-
+                
                 // Process user rewards for the current round
                 processRewards(_roundId);
 
@@ -471,10 +464,7 @@ contract XenGame {
                 // Adjust the end time of the round based on the number of keys purchased
                 adjustRoundEndTime(_numberOfKeys);
 
-                // Transfer any remaining ETH back to the player and store it in their key rewards
-                // if (remainingEth > 0) {
-                //     players[msg.sender].keyRewards += remainingEth;
-                // }
+                
             }
         } 
     }
