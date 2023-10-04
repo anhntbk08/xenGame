@@ -1132,7 +1132,7 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
         rounds[currentRound].ended = false;
 
         // Set the reward ratio to a low non-zero value
-        round.rewardRatio = 1; 
+        rounds[currentRound].rewardRatio = 1; 
        
         emit NewRoundStarted(currentRound, rounds[currentRound].start, rounds[currentRound].end);
     }
