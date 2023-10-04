@@ -664,8 +664,12 @@ contract XenGame {
             round.lastKeyPrice = 0.000000009 ether; // Set to 0.000000009 ether if there is no early buying ETH or no keys purchased
         }
 
+<<<<<<< HEAD
         // Set the reward ratio to a low non-zero value
         round.rewardRatio = 1;
+=======
+        
+>>>>>>> 93c7811a35f46814c0eb1f6accbf25ee5fad703f
 
         // Add early buy-in funds to the jackpot
         round.jackpot += round.earlyBuyinEth;
@@ -1203,11 +1207,10 @@ contract XenGame {
         // Reset the "ended" flag for the new round
         rounds[currentRound].ended = false;
 
-        emit NewRoundStarted(
-            currentRound,
-            rounds[currentRound].start,
-            rounds[currentRound].end
-        );
+        // Set the reward ratio to a low non-zero value
+        round.rewardRatio = 1; 
+       
+        emit NewRoundStarted(currentRound, rounds[currentRound].start, rounds[currentRound].end);
     }
 
     /**
