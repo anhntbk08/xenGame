@@ -642,8 +642,7 @@ receive() external payable {
             round.lastKeyPrice = 0.000000009 ether; // Set to 0.000000009 ether if there is no early buying ETH or no keys purchased
         }
 
-        // Set the reward ratio to a low non-zero value
-        round.rewardRatio = 1; 
+        
 
         // Add early buy-in funds to the jackpot
         round.jackpot += round.earlyBuyinEth;
@@ -1132,6 +1131,8 @@ function WithdrawBurntKeyRewards(uint _roundNumber) public {
         // Reset the "ended" flag for the new round
         rounds[currentRound].ended = false;
 
+        // Set the reward ratio to a low non-zero value
+        round.rewardRatio = 1; 
        
         emit NewRoundStarted(currentRound, rounds[currentRound].start, rounds[currentRound].end);
     }
