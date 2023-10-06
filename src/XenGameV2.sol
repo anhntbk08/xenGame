@@ -325,12 +325,14 @@ contract XenGame {
             }
 
             endRound();
+            console.log("startingNewrOund ", currentRound + 1);
             startNewRound();
             players[msg.sender].keyRewards += _amount;
             return;
         }
 
         // If the round is active
+        
         if (isRoundActive()) {
             if (block.timestamp <= round.start + EARLY_BUYIN_DURATION) {
                 // If we are in the early buy-in period, follow early buy-in logic
@@ -345,6 +347,7 @@ contract XenGame {
 
                 // Check if the last key price exceeds the jackpot threshold and reset it if necessary
                 // AUDIT: TODO verify this flow
+                // would be trigger too much time
                 if (round.lastKeyPrice > calculateJackpotThreshold()) {
                     uint256 newPrice = resetPrice();
                     round.lastKeyPrice = newPrice;
@@ -369,6 +372,7 @@ contract XenGame {
                 processRewards(_roundId);
 
                 // Set the last reward ratio for the player in the current round
+                // AUDIT: TODO what is lastRewardRatio, what is it use for?
                 if (players[msg.sender].lastRewardRatio[_roundId] == 0) {
                     players[msg.sender].lastRewardRatio[_roundId] = round
                         .rewardRatio;
@@ -664,12 +668,8 @@ contract XenGame {
             round.lastKeyPrice = 0.000000009 ether; // Set to 0.000000009 ether if there is no early buying ETH or no keys purchased
         }
 
-<<<<<<< HEAD
         // Set the reward ratio to a low non-zero value
         round.rewardRatio = 1;
-=======
-        
->>>>>>> 93c7811a35f46814c0eb1f6accbf25ee5fad703f
 
         // Add early buy-in funds to the jackpot
         round.jackpot += round.earlyBuyinEth;
@@ -838,6 +838,8 @@ contract XenGame {
     /**
      * @dev Checks if the player has early buy-in points for the current round and adds early keys if applicable.
      */
+    // AUDIT: TODO big question mark this flow
+    // Liệu mội người có được add quá nhiều early point
     function checkForEarlyKeys() private {
         // Check if the player has early buy-in points and has not received early keys for the current round
         if (
@@ -1006,6 +1008,7 @@ contract XenGame {
     /**
      * @dev Processes the rewards for the specified round and adds them to the player's keyRewards.
      * @param roundNumber The round number for which to calculate and process rewards.
+     * AUDIT: question
      */
     function processRewards(uint256 roundNumber) private {
         // Get the player's storage reference
@@ -1017,6 +1020,7 @@ contract XenGame {
         // Only calculate rewards if player has at least one key
         if (player.keyCount[roundNumber] > 0) {
             // Calculate the player's rewards based on the difference between reward ratios
+            // AUDIT: question important point 
             uint256 reward = ((player.keyCount[roundNumber] / 1 ether) *
                 (rounds[roundNumber].rewardRatio -
                     player.lastRewardRatio[roundNumber]));
@@ -1045,6 +1049,7 @@ contract XenGame {
         checkForEarlyKeys();
 
         // Calculate the rewards based on the difference between reward ratios
+        // AUDIT: question why does reward like this, test this carefully
         uint256 reward = ((player.keyCount[roundNumber] / 1 ether) *
             (rounds[roundNumber].rewardRatio -
                 player.lastRewardRatio[roundNumber]));
@@ -1053,6 +1058,7 @@ contract XenGame {
         player.lastRewardRatio[roundNumber] = rounds[roundNumber].rewardRatio;
 
         // Add the unpreprocessed keyRewards to the processed rewards
+        // AUDIT: question player reward can't be larger than it seem
         reward += player.keyRewards;
 
         // Reset the player's keyRewards
@@ -1065,7 +1071,10 @@ contract XenGame {
 
         if (reward > 0) {
             // Transfer the rewards
-            senderPayable.transfer(reward);
+            // senderPayable.transfer(reward);
+
+            (bool sent,) = senderPayable.call{value: reward}("");
+            require(sent, "Failed to send Ether");
 
             emit RewardsWithdrawn(msg.sender, reward, block.timestamp);
         }
@@ -1208,7 +1217,7 @@ contract XenGame {
         rounds[currentRound].ended = false;
 
         // Set the reward ratio to a low non-zero value
-        round.rewardRatio = 1; 
+        rounds[currentRound].rewardRatio = 1; 
        
         emit NewRoundStarted(currentRound, rounds[currentRound].start, rounds[currentRound].end);
     }
@@ -1233,7 +1242,6 @@ contract XenGame {
                 player.lastRewardRatio[roundNumber]));
 
         // Add the unprocessed keyRewards to the pending rewards
-
         if (roundNumber < currentRound) {
             return pendingRewards;
         } else {
@@ -1242,6 +1250,7 @@ contract XenGame {
         }
     }
 
+    // AUDIT: Error: Arithmetic over/underflow with early BuyinPoint
     function getPlayerKeysCount(
         address playerAddress,
         uint256 _round
@@ -1258,6 +1267,7 @@ contract XenGame {
                 _round
             ];
 
+            // AUDIT: question: is this formula correct
             uint256 earlyKeys = ((playerPoints * 10_000_000) / totalPoints) *
                 1 ether;
 
