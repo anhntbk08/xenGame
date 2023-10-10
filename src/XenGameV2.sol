@@ -479,7 +479,7 @@ contract XenGame {
         Player storage player = players[msg.sender];
 
         // Check for any early keys
-        checkForEarlyKeys();
+        checkForEarlyKeys(currentRound);
 
         // Calculate the player's rewards
         uint256 reward = (
@@ -795,21 +795,21 @@ receive() external payable {
     /**
     * @dev Checks if the player has early buy-in points for the current round and adds early keys if applicable.
     */
-    function checkForEarlyKeys() private {
+    function checkForEarlyKeys(uint _round) private {
 
         // Check if the player has early buy-in points and has not received early keys for the current round
-        if (players[msg.sender].earlyBuyinPoints[currentRound] > 0 && !earlyKeysReceived[msg.sender][currentRound]) {
+        if (players[msg.sender].earlyBuyinPoints[_round] > 0 && !earlyKeysReceived[msg.sender][_round]) {
 
             // Calculate early keys based on the amount of early ETH sent
-            uint256 totalPoints = rounds[currentRound].earlyBuyinEth;
-            uint256 playerPoints = players[msg.sender].earlyBuyinPoints[currentRound];
+            uint256 totalPoints = rounds[_round].earlyBuyinEth;
+            uint256 playerPoints = players[msg.sender].earlyBuyinPoints[_round];
             uint256 earlyKeys = ((playerPoints * 10_000_000) / totalPoints) * 1 ether;
 
             // Add the early keys to the player's key count for the current round
-            players[msg.sender].keyCount[currentRound] += earlyKeys;
+            players[msg.sender].keyCount[_round] += earlyKeys;
             
             // Mark that early keys were received for this round
-            earlyKeysReceived[msg.sender][currentRound] = true;
+            earlyKeysReceived[msg.sender][_round] = true;
         }
     }
 
@@ -956,7 +956,7 @@ receive() external payable {
         Player storage player = players[msg.sender];
 
         // Check for early keys received during the early buy-in period
-        checkForEarlyKeys();
+        checkForEarlyKeys(roundNumber);
 
         // Only calculate rewards if player has at least one key
         if (player.keyCount[roundNumber] > 0) {
@@ -987,7 +987,7 @@ function withdrawRewards(uint256 roundNumber) public {
     address payable senderPayable = payable(msg.sender);  
 
     // Check for early keys received during the early buy-in period
-    checkForEarlyKeys();
+    checkForEarlyKeys(roundNumber);
 
     // Calculate the rewards based on the difference between reward ratios
     uint256 reward = (
