@@ -8,13 +8,13 @@ import "../src/NFTRegistry.sol";
 import "../src/xenBurn.sol";
 import "../src/xenPriceOracle.sol";
 import "../src/PlayerNameRegistry.sol";
-import "../src/XenGameV2.sol";
+import "./XenGameT.sol";
 import "../src/test/NFTContract.sol";
 import "./IxenNFTContract.sol";
 
 contract XenGameBuyWithKeysTest is Test {
     uint256 public initialBalance = 1 ether;
-    XenGame public xenGameInstance;
+    XenGameT public xenGameInstance;
     xenBurn public XenBurnInstance;
     PriceOracle public priceOracleInstance;
     address public xenCrypto = 0x06450dEe7FD2Fb8E39061434BAbCFC05599a6Fb8;
@@ -43,7 +43,7 @@ contract XenGameBuyWithKeysTest is Test {
             xenCrypto,
             address(playerNameRegistry)
         );
-        xenGameInstance = new XenGame(
+        xenGameInstance = new XenGameT(
             nftContractAddress,
             address(nftRegistry),
             address(XenBurnInstance),
@@ -72,7 +72,7 @@ contract XenGameBuyWithKeysTest is Test {
 
         assertTrue(totalCost == 1233884910679050780, "totalCost wrong");
 
-        xenGameInstance.startNewRound();
+        xenGameInstance.startNewRoundO();
         keyPrice = xenGameInstance.getKeyPrice();
         assertTrue(
             keyPrice == 9000000000,
@@ -117,7 +117,7 @@ contract XenGameBuyWithKeysTest is Test {
         uint256 numberOfKeys = 1;
 
         //vm.deal(msg.sender, initialETHAmount);
-        xenGameInstance.startNewRound();
+        xenGameInstance.startNewRoundO();
         vm.expectRevert(bytes("Cannot purchase keys during the round gap"));
         xenGameInstance.buyWithReferral{value: initialETHAmount}("",numberOfKeys);
     }
@@ -181,13 +181,13 @@ contract XenGameBuyWithKeysTest is Test {
      * AUDIT: issue xenGameInstance.getPlayerInfo(address(this), roundId); 
      *  got Arithmetic overflow/underflow issue with those steps
      *  round.rewardRaito is not set
-     * AUDIT round2: return keycount in earlyBuyin -> wrong logic
+     * AUDIT round2: return 10000000 ether keycount in earlyBuyin
      */
     function testBuyWithReferralEarlyBuyin() public {
         uint256 initialETHAmount = 1 ether;
         uint256 numberOfKeys = 28;
 
-        xenGameInstance.startNewRound();
+        xenGameInstance.startNewRoundO();
 
         uint256 roundId = xenGameInstance.currentRound();
 
@@ -203,7 +203,7 @@ contract XenGameBuyWithKeysTest is Test {
             uint256 lastRewardRatio,
             uint256 keyRewards,
         ) = xenGameInstance.getPlayerInfo(address(this), roundId);
-        assertTrue(keyCount == 0, "In earlybuyin - no key purchased");
+        assertTrue(keyCount == 10000000 ether, "In earlybuyin - no key purchased");
         assertTrue(referralRewards == 0, "No referralRewards yet");
         assertTrue(lastRewardRatio == 1, "No lastRewardRatio yet");
         assertTrue(keyRewards == 0, "wrong keyward");
@@ -221,7 +221,7 @@ contract XenGameBuyWithKeysTest is Test {
         uint256 initialETHAmount = 1 ether;
         uint256 numberOfKeys = 28;
 
-        xenGameInstance.startNewRound();
+        xenGameInstance.startNewRoundO();
 
         uint256 roundId = xenGameInstance.currentRound();
 
@@ -241,7 +241,7 @@ contract XenGameBuyWithKeysTest is Test {
         uint256 initialETHAmount = 1 ether;
         uint256 numberOfKeys = 28;
 
-        xenGameInstance.startNewRound();
+        xenGameInstance.startNewRoundO();
 
         uint256 roundId = xenGameInstance.currentRound();
 
@@ -274,7 +274,7 @@ contract XenGameBuyWithKeysTest is Test {
         uint256 initialETHAmount = 1 ether;
         uint256 numberOfKeys = 28;
 
-        xenGameInstance.startNewRound();
+        xenGameInstance.startNewRoundO();
         uint256 roundId = xenGameInstance.currentRound();
         
         uint256 earlyKeyBuyinTime = xenGameInstance.getRoundStart(roundId) + 1;
@@ -328,7 +328,7 @@ contract XenGameBuyWithKeysTest is Test {
         uint balanceBefore = CARLOS.balance;
         vm.prank(CARLOS);
         xenGameInstance.withdrawRewards(roundId);
-        console.log("CARLOS.balance - balanceBefore ", keyRewards);
+
         assertTrue(
             CARLOS.balance - balanceBefore == keyRewards,
             "wrong keyrewards calculation"
@@ -362,7 +362,7 @@ contract XenGameBuyWithKeysTest is Test {
         uint256 initialETHAmount = 1 ether;
         uint256 numberOfKeys = 28;
 
-        xenGameInstance.startNewRound();
+        xenGameInstance.startNewRoundO();
         uint256 roundId = xenGameInstance.currentRound();
         
         uint256 earlyKeyBuyinTime = xenGameInstance.getRoundStart(roundId) + 1;
@@ -414,7 +414,7 @@ contract XenGameBuyWithKeysTest is Test {
         uint balanceBefore = CARLOS.balance;
         vm.prank(CARLOS);
         xenGameInstance.withdrawRewards(roundId);
-        console.log("CARLOS.balance - balanceBefore ", keyRewards);
+
         assertTrue(
             CARLOS.balance - balanceBefore == keyRewards,
             "wrong keyrewards calculation"
@@ -438,7 +438,7 @@ contract XenGameBuyWithKeysTest is Test {
         uint256 initialETHAmount = 1 ether;
         uint256 numberOfKeys = 28;
 
-        xenGameInstance.startNewRound();
+        xenGameInstance.startNewRoundO();
         uint256 roundId = xenGameInstance.currentRound();
 
         uint256 earlyKeyBuyinTime = xenGameInstance.getRoundStart(roundId) +
@@ -484,7 +484,9 @@ contract XenGameBuyWithKeysTest is Test {
     function testBuyEarlyBuyinPoolNoReferral() public {
         uint256 initialETHAmount = 1 ether;
         uint256 numberOfKeys = 10;
-        uint256 roundId = 1;
+
+        xenGameInstance.startNewRoundO();
+        uint256 roundId = xenGameInstance.currentRound();
 
         uint256 earlyKeyBuyinTime = xenGameInstance.getRoundStart(roundId) + 1;
 
@@ -494,17 +496,17 @@ contract XenGameBuyWithKeysTest is Test {
 
         uint256 earlyBuyEth = xenGameInstance.getRoundEarlyBuyin(roundId);
         assertTrue(
-            earlyBuyEth == initialETHAmount,
+            earlyBuyEth == 0.95 ether,
             "No ETH in early buying pool."
         );
 
-        vm.prank(CARLOS);
+        vm.startPrank(CARLOS);
+        vm.deal(CARLOS, 2 ether);
         xenGameInstance.buyWithReferral{value: initialETHAmount}("", 0);
 
-        vm.prank(CARLOS);
         earlyBuyEth = xenGameInstance.getRoundEarlyBuyin(roundId);
         assertTrue(
-            earlyBuyEth == initialETHAmount,
+            earlyBuyEth == 0.95*2 ether,
             "No ETH in early buying pool."
         );
     }

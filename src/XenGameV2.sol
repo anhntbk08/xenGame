@@ -325,7 +325,6 @@ contract XenGame {
             }
 
             endRound();
-            console.log("startingNewrOund ", currentRound + 1);
             startNewRound();
             players[msg.sender].keyRewards += _amount;
             return;
@@ -567,7 +566,6 @@ contract XenGame {
         }
 
         // Calculate the amount of ETH without the referral reward
-        // AUDIT: why do we need to reduce the referralReward 
         uint256 amount = _amount - referralReward;
 
         // Accumulate the amount of ETH sent during the early buy-in period
@@ -687,7 +685,6 @@ contract XenGame {
     ) public view returns (uint256 maxKeys, uint256 totalCost) {
         // Fetch the initial price of a key
         uint256 initialKeyPrice = getKeyPrice();
-
         // If the user's amount is less than the price of a single key, return as no keys can be bought
         if (_amount < initialKeyPrice) {
             return (0, 0);
@@ -695,6 +692,7 @@ contract XenGame {
 
         // left and right are the boundaries for the binary search of the maximum number of keys that can be bought.
         // Initialize the left to zero and right to the maximum number of keys that could be bought if the price never increased.
+        // AUDIT: 
         uint256 left = 0;
         uint256 right = _amount / initialKeyPrice;
 
@@ -710,7 +708,6 @@ contract XenGame {
             _totalCost = calculatePriceForKeys(mid);
 
             uint256 nextCost;
-
             // Ensure we don't get an overflow when we add 1 to mid
             if (mid + 1 > mid) {
                 // Calculate the cost to purchase mid + 1 keys
@@ -839,7 +836,10 @@ contract XenGame {
      * @dev Checks if the player has early buy-in points for the current round and adds early keys if applicable.
      */
     // AUDIT: TODO big question mark this flow
-    // Liệu mội người có được add quá nhiều early point
+    // Scenario that user doesn't receive the reward for earlyKeys
+    /**
+     * 
+     */
     function checkForEarlyKeys() private {
         // Check if the player has early buy-in points and has not received early keys for the current round
         if (
@@ -1020,7 +1020,6 @@ contract XenGame {
         // Only calculate rewards if player has at least one key
         if (player.keyCount[roundNumber] > 0) {
             // Calculate the player's rewards based on the difference between reward ratios
-            // AUDIT: question important point 
             uint256 reward = ((player.keyCount[roundNumber] / 1 ether) *
                 (rounds[roundNumber].rewardRatio -
                     player.lastRewardRatio[roundNumber]));
@@ -1046,6 +1045,10 @@ contract XenGame {
         address payable senderPayable = payable(msg.sender);
 
         // Check for early keys received during the early buy-in period
+        // AUDIT the round number of withdrawRewards() is not the same as checkForEarlyKeys
+        /**
+         * Call here because of user may not be reward
+         */
         checkForEarlyKeys();
 
         // Calculate the rewards based on the difference between reward ratios
@@ -1203,7 +1206,7 @@ contract XenGame {
     /**
      * @dev Starts a new round by incrementing the current round number and setting the start and end times.
      */
-    function startNewRound() public {
+    function startNewRound() private {
         // Increment the current round number
         currentRound += 1;
 
@@ -1251,6 +1254,9 @@ contract XenGame {
     }
 
     // AUDIT: Error: Arithmetic over/underflow with early BuyinPoint
+    /**
+     * 
+     */
     function getPlayerKeysCount(
         address playerAddress,
         uint256 _round
@@ -1267,7 +1273,6 @@ contract XenGame {
                 _round
             ];
 
-            // AUDIT: question: is this formula correct
             uint256 earlyKeys = ((playerPoints * 10_000_000) / totalPoints) *
                 1 ether;
 

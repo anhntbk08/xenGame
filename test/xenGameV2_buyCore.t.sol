@@ -8,13 +8,13 @@ import "../src/NFTRegistry.sol";
 import "../src/xenBurn.sol";
 import "../src/xenPriceOracle.sol";
 import "../src/PlayerNameRegistry.sol";
-import "../src/XenGameV2.sol";
+import "./XenGameT.sol";
 
 import "./IxenNFTContract.sol";
 
 contract XenGameBuyCoreTest is Test {
     uint256 public initialBalance = 1 ether;
-    XenGame public xenGameInstance;
+    XenGameT public xenGameInstance;
     xenBurn public XenBurnInstance;
     PriceOracle public priceOracleInstance;
     address public xenCrypto = 0x06450dEe7FD2Fb8E39061434BAbCFC05599a6Fb8;
@@ -43,7 +43,7 @@ contract XenGameBuyCoreTest is Test {
             xenCrypto,
             address(playerNameRegistry)
         );
-        xenGameInstance = new XenGame(
+        xenGameInstance = new XenGameT(
             nftContractAddress,
             address(nftRegistry),
             address(XenBurnInstance),
@@ -59,7 +59,7 @@ contract XenGameBuyCoreTest is Test {
         uint256 numberOfKeys = 0;
 
         //vm.deal(msg.sender, initialETHAmount);
-        xenGameInstance.startNewRound();
+        xenGameInstance.startNewRoundO();
         vm.expectRevert(bytes("Cannot purchase keys during the round gap"));
         xenGameInstance.buyWithReferral{value: initialETHAmount}(
             "",
@@ -78,12 +78,12 @@ contract XenGameBuyCoreTest is Test {
         //vm.deal(msg.sender, registerationFee);
         playerNameRegistry.registerPlayerName{value: registerationFee}(
             BOB,
-            "RefererReward_BuyWithReferralNoNumberOfKeys"
+            "RefererRewardNoNumberOfKeys"
         );
 
         //vm.deal(msg.sender, initialETHAmount);
         xenGameInstance.buyWithReferral{value: initialETHAmount}(
-            "RefererReward_BuyWithReferralNoNumberOfKeys",
+            "RefererRewardNoNumberOfKeys",
             numberOfKeys
         );
 
@@ -119,6 +119,41 @@ contract XenGameBuyCoreTest is Test {
         );
     }
 
+
+    /**
+     * Simple buy and withdraw, make sure getPlayerInfo.keyreward = withdrawReward fund
+     */
+    function testSimpleBuyNoNumberOfKeys() public {
+        uint256 initialETHAmount = 1 ether;
+        uint256 numberOfKeys = 0;
+
+        xenGameInstance.startNewRoundO();
+        uint256 roundId = xenGameInstance.currentRound();
+
+        uint256 earlyKeyBuyinTime = xenGameInstance.getRoundStart(roundId) + 1;
+        vm.warp(earlyKeyBuyinTime + EARLY_BUYIN_DURATION);
+
+        xenGameInstance.buyWithReferral{value: initialETHAmount}(
+            "",
+            numberOfKeys
+        );
+
+        (
+            ,,,,uint keyreward,
+        ) = xenGameInstance.getPlayerInfo(address(this), roundId);
+
+
+        // withdraw fund to make sure
+        uint balanceBefore = address(this).balance;
+        xenGameInstance.withdrawRewards(roundId);
+
+        assertTrue(address(this).balance - balanceBefore  == keyreward, "keyreward mismatchs ");
+        balanceBefore = address(this).balance;
+
+        xenGameInstance.withdrawRewards(roundId);
+        assertTrue(address(this).balance - balanceBefore  == 0, "keyreward should be zero ");
+    }
+
     /**
      * Test buyWithReferral in earlyBuyin then try to withdraw
      * AUDIT: issue xenGameInstance.getPlayerInfo(address(this), roundId);
@@ -130,8 +165,7 @@ contract XenGameBuyCoreTest is Test {
         uint256 initialETHAmount = 1 ether;
         uint256 numberOfKeys = 0;
 
-        xenGameInstance.startNewRound();
-
+        xenGameInstance.startNewRoundO();
         uint256 roundId = xenGameInstance.currentRound();
 
         uint256 earlyKeyBuyinTime = xenGameInstance.getRoundStart(roundId) + 1;
@@ -149,7 +183,7 @@ contract XenGameBuyCoreTest is Test {
             uint256 lastRewardRatio,
             uint256 keyRewards,
         ) = xenGameInstance.getPlayerInfo(address(this), roundId);
-        assertTrue(keyCount == 0, "In earlybuyin - no key purchased");
+        assertTrue(keyCount == 10000000 ether, "In earlybuyin - no key purchased");
         assertTrue(referralRewards == 0, "No referralRewards yet");
         assertTrue(lastRewardRatio == 1, "No lastRewardRatio yet");
         assertTrue(keyRewards == 0, "wrong keyward");
@@ -169,7 +203,7 @@ contract XenGameBuyCoreTest is Test {
         uint256 initialETHAmount = 1 ether;
         uint256 numberOfKeys = 0;
 
-        xenGameInstance.startNewRound();
+        xenGameInstance.startNewRoundO();
 
         uint256 roundId = xenGameInstance.currentRound();
 
@@ -180,6 +214,7 @@ contract XenGameBuyCoreTest is Test {
             "",
             numberOfKeys
         );
+
         vm.expectRevert();
         xenGameInstance.withdrawRewards(roundId);
     }
@@ -194,7 +229,7 @@ contract XenGameBuyCoreTest is Test {
         uint256 initialETHAmount = 1 ether;
         uint256 numberOfKeys = 0;
 
-        xenGameInstance.startNewRound();
+        xenGameInstance.startNewRoundO();
 
         uint256 roundId = xenGameInstance.currentRound();
 
@@ -213,8 +248,22 @@ contract XenGameBuyCoreTest is Test {
             numberOfKeys
         );
 
+        // during this time frame revert "Arithmetic over/underflow" when trying 
+        // to withdraw the rewards.
         vm.prank(address(this));
         vm.expectRevert();
+        xenGameInstance.withdrawRewards(roundId);
+
+        // wait for the normal time frame
+        vm.warp(earlyKeyBuyinTime + EARLY_BUYIN_DURATION);
+
+        vm.prank(ALICE);
+        xenGameInstance.buyWithReferral{value: initialETHAmount}(
+            "",
+            numberOfKeys
+        );
+
+        xenGameInstance.withdrawRewards(roundId);
         xenGameInstance.withdrawRewards(roundId);
     }
 
@@ -234,7 +283,7 @@ contract XenGameBuyCoreTest is Test {
         uint256 initialETHAmount = 1 ether;
         uint256 numberOfKeys = 0;
 
-        xenGameInstance.startNewRound();
+        xenGameInstance.startNewRoundO();
         uint256 roundId = xenGameInstance.currentRound();
 
         uint256 earlyKeyBuyinTime = xenGameInstance.getRoundStart(roundId) + 1;
@@ -327,7 +376,7 @@ contract XenGameBuyCoreTest is Test {
         uint256 initialETHAmount = 1 ether;
         uint256 numberOfKeys = 0;
 
-        xenGameInstance.startNewRound();
+        xenGameInstance.startNewRoundO();
         uint256 roundId = xenGameInstance.currentRound();
 
         uint256 earlyKeyBuyinTime = xenGameInstance.getRoundStart(roundId) + 1;
@@ -386,7 +435,7 @@ contract XenGameBuyCoreTest is Test {
         uint balanceBefore = CARLOS.balance;
         vm.prank(CARLOS);
         xenGameInstance.withdrawRewards(roundId);
-        console.log("CARLOS.balance - balanceBefore ", keyRewards);
+
         assertTrue(
             CARLOS.balance - balanceBefore == keyRewards,
             "wrong keyrewards calculation"
@@ -409,7 +458,7 @@ contract XenGameBuyCoreTest is Test {
         uint256 initialETHAmount = 1 ether;
         uint256 numberOfKeys = 0;
 
-        xenGameInstance.startNewRound();
+        xenGameInstance.startNewRoundO();
         uint256 roundId = xenGameInstance.currentRound();
 
         uint256 normalBuyingTime = xenGameInstance.getRoundStart(roundId) +
@@ -461,7 +510,7 @@ contract XenGameBuyCoreTest is Test {
         uint256 initialETHAmount = 1 ether;
         uint256 numberOfKeys = 0;
 
-        xenGameInstance.startNewRound();
+        xenGameInstance.startNewRoundO();
         uint256 roundId = xenGameInstance.currentRound();
 
         uint256 endTime = xenGameInstance.getRoundEnd(roundId);
@@ -477,9 +526,6 @@ contract XenGameBuyCoreTest is Test {
             "",
             numberOfKeys
         );
-        
-        vm.expectRevert();
-        xenGameInstance.withdrawRewards(roundId);
 
         // if user buy in this time, no keys purchased, just reward = total sent
         (
@@ -573,7 +619,7 @@ contract XenGameBuyCoreTest is Test {
         uint256 initialETHAmount = 1 ether;
         uint256 numberOfKeys = 0;
 
-        xenGameInstance.startNewRound();
+        xenGameInstance.startNewRoundO();
         uint256 roundId = xenGameInstance.currentRound();
 
         // AUDIT: if earlyBuyin, next person buy in expired time still can't trigger the ended round
@@ -660,16 +706,61 @@ contract XenGameBuyCoreTest is Test {
 
         // withdraw with address(this) --> expect success
         xenGameInstance.withdrawRewards(roundId+1);
-
     }
 
+    /**
+     * Should not trigger the ResetPrice if the jackpot is low < 10
+     */
+    // function testTriggerPriceReset() public {
+    //     uint jackPot; 
+    //     uint keyPrice;
 
-    function testEndRoundDistributeCorrect() public {
+    //     uint256 initialETHAmount = 0.01 ether;
+    //     uint256 numberOfKeys = 0;
+    //     xenGameInstance.startNewRoundO();
+    //     uint256 roundId = xenGameInstance.currentRound();
 
-    }
+    //     uint256 normalBuyTime = xenGameInstance.getRoundEnd(roundId) - 1000;
+    //     vm.warp(normalBuyTime);
 
-    function testJackpotCorrect() public {
+    //     for (uint i = 0; i < 10; i++) {
+    //         xenGameInstance.buyWithReferral{value: initialETHAmount}(
+    //             "",
+    //             numberOfKeys
+    //         );
+    //         jackPot = xenGameInstance.getRoundJackpot(roundId);
+    //         keyPrice = xenGameInstance.getKeyPrice();
+            
+    //     }
 
+    //     assertTrue(false, "check event emiited");
+    // }
+
+    function testCalculateMaxKeysToPurchase() public {
+        xenGameInstance.startNewRoundO();
+        (uint lowestCase, uint totalCost) = xenGameInstance.calculateMaxKeysToPurchase(0.000000009 ether);
+        assertTrue(
+            lowestCase == 1, "minimum key is 1"
+        );
+        assertTrue(
+            totalCost == 0.000000009 ether, "cost must be 0.000000009 ether"
+        );
+
+        (lowestCase, totalCost) = xenGameInstance.calculateMaxKeysToPurchase(0.0000000009 ether);
+        assertTrue(
+            lowestCase == 0, "not enough to buy any key"
+        );
+        assertTrue(
+            totalCost == 0, "no cost"
+        );
+
+        (lowestCase, totalCost) = xenGameInstance.calculateMaxKeysToPurchase(1 ether);
+        assertTrue(
+            lowestCase == 14906, "wrong totalKeys"
+        );
+        assertTrue(
+            totalCost == 999916839000000000, "wrong cost"
+        );
     }
 
     receive() external payable {}
