@@ -341,13 +341,13 @@ contract XenGame {
 
             if (round.totalKeys == 0){
                 round.end = block.timestamp + 600;
-                players[msg.sender].keyRewards += _amount;
+                players[msg.sender].keyRewards += (_amount * 90 / 100);
                 return;
             }
 
             endRound();
             startNewRound();
-            players[msg.sender].keyRewards += _amount;
+            players[msg.sender].keyRewards += (_amount * 90 / 100);
             return;
         }
 
@@ -411,14 +411,14 @@ contract XenGame {
 
             if (round.totalKeys == 0){
                 round.end = block.timestamp + 600;
-                players[msg.sender].keyRewards += _amount;
+                players[msg.sender].keyRewards += (_amount * 90 / 100);
                 return;
             }
             
             // End the current round and start a new one
             endRound();
             startNewRound();
-            players[msg.sender].keyRewards += _amount;
+            players[msg.sender].keyRewards += (_amount * 90 / 100);
             return;
         }
 
@@ -481,13 +481,13 @@ contract XenGame {
         // Check for any early keys
         checkForEarlyKeys(currentRound);
 
-        // Calculate the player's rewards
+        // Calculate the player's rewards unprocessed 
         uint256 reward = (
             (player.keyCount[currentRound] / 1 ether)
                 * (rounds[currentRound].rewardRatio - player.lastRewardRatio[currentRound])
         ); // using full keys for reward calc
 
-        // Add any keyRewards to the calculated reward
+        // Add any processed keyRewards to the calculated reward
         reward += player.keyRewards;
 
         // Reset player's keyRewards
@@ -763,7 +763,7 @@ receive() external payable {
         round.lastKeyPrice = finalKeyPrice;
 
         // Distribute the funds to different purposes (keys funds, jackpot, etc.)
-        distributeFunds(_amount);
+        distributeFunds(msg.value);
 
         emit BuyAndDistribute(msg.sender,  maxKeysToPurchase, finalKeyPrice,  block.timestamp);
     }
