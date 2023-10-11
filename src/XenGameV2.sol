@@ -85,7 +85,6 @@ contract XenGame {
     uint256 constant APEX_FUND_PERCENTAGE = 500; // 5% or 5000 basis points
     uint256 constant PRECISION = 10 ** 18;
 
-    // AUDIT the order is not optimized
     address private playerNames;
     uint256 private loadedPlayers = 0;
     bool public migrationLocked = false;
@@ -102,22 +101,21 @@ contract XenGame {
         uint256 numberOfReferrals;
     }
 
-    // AUDIT is the order optimized
     struct Round {
         uint256 totalKeys;
         uint256 burntKeys;
         uint256 start;
         uint256 end;
-        address activePlayer; // AUDIT what is activePlayer, role
+        address activePlayer;
         bool ended;
         bool isEarlyBuyin;
         uint256 keysFunds; // not used in logic, old code
         uint256 jackpot; // ETH for the jackpot
         uint256 earlyBuyinEth; // Total ETH received during the early buy-in period
         uint256 lastKeyPrice; // The last key price for this round
-        uint256 rewardRatio; // AUDIT what is rewardRatio
+        uint256 rewardRatio;
         uint256 BurntKeyFunds;
-        uint256 uniquePlayers; // AUDIT why not merge with playerAddresses
+        uint256 uniquePlayers;
         address[] playerAddresses; // 
     }
 
@@ -144,7 +142,6 @@ contract XenGame {
             _playerNameRegistryAddress
         ); // X1 testing address
 
-        // AUDIT playerNames --> should be fee receiver
         playerNames = 0x835940AeADc403322f62C361A1e16AfD47035AF6; // X1 testing address
 
         // move to a preset functions
@@ -238,12 +235,10 @@ contract XenGame {
      * @param _referrerName The name of the referrer.
      * @param _numberOfKeys The number of keys to purchase.
      */
-    // AUDIT check the reentrance 
     function buyWithReferral(
         string memory _referrerName,
         uint256 _numberOfKeys
     ) public payable {
-        // AUDIT - not check the msg.sender exists
         Player storage player = players[msg.sender];
 
         // Get the player and referrer information
@@ -251,7 +246,6 @@ contract XenGame {
             ? _referrerName
             : player.lastReferrer;
         address referrer = playerNameRegistry.getPlayerAddress(referrerName);
-        // AUDIT referrer can be 0x00 --> gas cost not needed
 
         Round storage round = rounds[currentRound];
 
@@ -304,10 +298,8 @@ contract XenGame {
      * @dev Handles the core logic of purchasing keys based on the amount of ETH sent.
      * @param _amount The amount of ETH sent by the player.
      */
-    // AUDIT: move the checking isRoundActive() || isRoundEnded() to modifier 
     function buyCore(uint256 _amount) private {
         // Check if the round is active or has ended
-        // AUDIT: move the checking isRoundActive() || isRoundEnded() to modifier 
         require(
             isRoundActive() || isRoundEnded(),
             "Cannot purchase keys during the round gap"
@@ -338,15 +330,12 @@ contract XenGame {
                 buyCoreEarly(_amount);
             } else if (!round.ended) {
                 // Check if this is the first transaction after the early buy-in period
-                // AUDIT if this condition never meet, the lastKeyPrice is always zero
                 if (round.isEarlyBuyin) {
                     updateTotalKeysForRound();
                     finalizeEarlyBuyinPeriod();
                 }
 
                 // Check if the last key price exceeds the jackpot threshold and reset it if necessary
-                // AUDIT: TODO verify this flow
-                // would be trigger too much time
                 if (round.lastKeyPrice > calculateJackpotThreshold()) {
                     uint256 newPrice = resetPrice();
                     round.lastKeyPrice = newPrice;
@@ -359,7 +348,6 @@ contract XenGame {
                     uint256 totalCost
                 ) = calculateMaxKeysToPurchase(_amount);
 
-                // AUDIT: are we making sure the totalCost > _amount
                 uint256 remainingEth = _amount - totalCost;
 
                 // Transfer any remaining ETH back to the player and store it in their key rewards
@@ -371,7 +359,6 @@ contract XenGame {
                 processRewards(_roundId);
 
                 // Set the last reward ratio for the player in the current round
-                // AUDIT: TODO what is lastRewardRatio, what is it use for?
                 if (players[msg.sender].lastRewardRatio[_roundId] == 0) {
                     players[msg.sender].lastRewardRatio[_roundId] = round
                         .rewardRatio;
@@ -394,10 +381,8 @@ contract XenGame {
      * @param _amount The amount of ETH sent by the player.
      * @param _numberOfKeys The number of keys to purchase.
      */
-    // AUDIT
     function buyCoreWithKeys(uint256 _amount, uint256 _numberOfKeys) private {
         // Check if the round is active or has ended\
-        // AUDIT move to modifier
         require(
             isRoundActive() || isRoundEnded(),
             "Cannot purchase keys during the round gap"
@@ -406,8 +391,6 @@ contract XenGame {
         uint256 _roundId = currentRound;
         Round storage round = rounds[currentRound];
         // If the round has ended and there are no total keys, set a new end time for the round
-        // AUDIT, there are a case when totalKeys always = 0, round can't  be ended
-        // AUDIT, second
         if (isRoundEnded()) {
             if (round.totalKeys == 0) {
                 round.end = block.timestamp + 600;
@@ -423,17 +406,13 @@ contract XenGame {
         }
 
         if (isRoundActive()) {
-            //AUDIT Duplicated code
             if (block.timestamp <= round.start + EARLY_BUYIN_DURATION) {
                 // If we are in the early buy-in period, follow early buy-in logic
                 buyCoreEarly(_amount);
             } else
-            // AUDIT why does we need this checking?  
-            // is there any point that set ended = true before the block checking range
-            // should use .ended inside isRoundActive() 
+            
             if (!round.ended) {
                 // Check if this is the first transaction after the early buy-in period
-                // AUDIT: totalKey may not never got updated
                 if (round.isEarlyBuyin) {
                     updateTotalKeysForRound();
                     finalizeEarlyBuyinPeriod();
@@ -486,7 +465,7 @@ contract XenGame {
         Player storage player = players[msg.sender];
 
         // Check for any early keys
-        checkForEarlyKeys();
+        checkForEarlyKeys(currentRound);
 
         // Calculate the player's rewards
         uint256 reward = ((player.keyCount[currentRound] / 1 ether) *
@@ -549,7 +528,6 @@ contract XenGame {
      * @dev Handles the logic of purchasing keys during the early buy-in period.
      * @param _amount The amount of ETH sent by the player.
      */
-    // AUDIT
     function buyCoreEarly(uint256 _amount) private {
         // Accumulate the ETH and track the user's early buy-in points
 
@@ -640,7 +618,6 @@ contract XenGame {
      */
     function updateTotalKeysForRound() private {
         // Check if there was early buy-in ETH
-        // AUDIT redundant
         if (rounds[currentRound].earlyBuyinEth > 0) {
             // Add 10,000,000 keys to the total keys count for the round
             rounds[currentRound].totalKeys += 10000000 ether;
@@ -679,7 +656,6 @@ contract XenGame {
      * @return maxKeys The maximum number of keys that can be purchased.
      * @return totalCost The total cost in ETH to purchase the maximum number of keys.
      */
-    // AUDIT: critical - revert division or module by zero
     function calculateMaxKeysToPurchase(
         uint256 _amount
     ) public view returns (uint256 maxKeys, uint256 totalCost) {
@@ -692,7 +668,6 @@ contract XenGame {
 
         // left and right are the boundaries for the binary search of the maximum number of keys that can be bought.
         // Initialize the left to zero and right to the maximum number of keys that could be bought if the price never increased.
-        // AUDIT: 
         uint256 left = 0;
         uint256 right = _amount / initialKeyPrice;
 
@@ -752,9 +727,6 @@ contract XenGame {
 
         // Calculate the total price based on the number of keys
         if (_keys <= 1) {
-            // AUDIT for some very first rounds totalPrice = 0
-            // AUDIT initialKeyPrice is always zero
-            // else 
             totalPrice = initialKeyPrice * _keys;
         } else {
             // AUDIT: simplify this formula
@@ -833,32 +805,23 @@ contract XenGame {
     }
 
     /**
-     * @dev Checks if the player has early buy-in points for the current round and adds early keys if applicable.
-     */
-    // AUDIT: TODO big question mark this flow
-    // Scenario that user doesn't receive the reward for earlyKeys
-    /**
-     * 
-     */
-    function checkForEarlyKeys() private {
+    * @dev Checks if the player has early buy-in points for the current round and adds early keys if applicable.
+    */
+    function checkForEarlyKeys(uint _round) private {
+
         // Check if the player has early buy-in points and has not received early keys for the current round
-        if (
-            players[msg.sender].earlyBuyinPoints[currentRound] > 0 &&
-            !earlyKeysReceived[msg.sender][currentRound]
-        ) {
+        if (players[msg.sender].earlyBuyinPoints[_round] > 0 && !earlyKeysReceived[msg.sender][_round]) {
+
             // Calculate early keys based on the amount of early ETH sent
-            uint256 totalPoints = rounds[currentRound].earlyBuyinEth;
-            uint256 playerPoints = players[msg.sender].earlyBuyinPoints[
-                currentRound
-            ];
-            uint256 earlyKeys = ((playerPoints * 10_000_000) / totalPoints) *
-                1 ether;
+            uint256 totalPoints = rounds[_round].earlyBuyinEth;
+            uint256 playerPoints = players[msg.sender].earlyBuyinPoints[_round];
+            uint256 earlyKeys = ((playerPoints * 10_000_000) / totalPoints) * 1 ether;
 
             // Add the early keys to the player's key count for the current round
-            players[msg.sender].keyCount[currentRound] += earlyKeys;
-
+            players[msg.sender].keyCount[_round] += earlyKeys;
+            
             // Mark that early keys were received for this round
-            earlyKeysReceived[msg.sender][currentRound] = true;
+            earlyKeysReceived[msg.sender][_round] = true;
         }
     }
 
@@ -1015,7 +978,7 @@ contract XenGame {
         Player storage player = players[msg.sender];
 
         // Check for early keys received during the early buy-in period
-        checkForEarlyKeys();
+        checkForEarlyKeys(roundNumber);
 
         // Only calculate rewards if player has at least one key
         if (player.keyCount[roundNumber] > 0) {
@@ -1045,11 +1008,7 @@ contract XenGame {
         address payable senderPayable = payable(msg.sender);
 
         // Check for early keys received during the early buy-in period
-        // AUDIT the round number of withdrawRewards() is not the same as checkForEarlyKeys
-        /**
-         * Call here because of user may not be reward
-         */
-        checkForEarlyKeys();
+        checkForEarlyKeys(roundNumber);
 
         // Calculate the rewards based on the difference between reward ratios
         // AUDIT: question why does reward like this, test this carefully
