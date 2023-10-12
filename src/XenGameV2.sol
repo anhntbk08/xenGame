@@ -372,7 +372,7 @@ contract XenGame {
                 }
 
                 // Calculate the maximum number of keys to purchase and the total cost
-                (uint256 maxKeysToPurchase, uint256 totalCost) = calculateMaxKeysToPurchase(_amount);
+                (uint256 maxKeysToPurchase, ) = calculateMaxKeysToPurchase(_amount);
                     
 
                 // Process users rewards for the current round
@@ -384,7 +384,7 @@ contract XenGame {
                 }
 
                 // Process the key purchase with the maximum number of keys and total cost
-                processKeyPurchase(maxKeysToPurchase, totalCost);
+                processKeyPurchase(maxKeysToPurchase, _amount);
 
                 // Set the active player for the round
                 round.activePlayer = msg.sender;
@@ -456,7 +456,7 @@ contract XenGame {
                 }
 
                 // Process the key purchase with the specified number of keys and cost
-                processKeyPurchase(_numberOfKeys, cost);
+                processKeyPurchase(_numberOfKeys, _amount);
 
                 // Set the active player for the round
                 round.activePlayer = msg.sender;
@@ -763,7 +763,7 @@ receive() external payable {
         round.lastKeyPrice = finalKeyPrice;
 
         // Distribute the funds to different purposes (keys funds, jackpot, etc.)
-        distributeFunds(msg.value);
+        distributeFunds(_amount);
 
         emit BuyAndDistribute(msg.sender,  maxKeysToPurchase, finalKeyPrice,  block.timestamp);
     }
